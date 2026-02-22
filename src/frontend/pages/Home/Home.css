@@ -1,0 +1,142 @@
+/* Home.css - Top bar + Sidebar tabs */
+
+/* ===== ROOT ===== */
+.home {
+  min-height: 100vh;
+  background: var(--clr-purple-dark-3);
+  color: white;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== TOP BAR (Username + Search + Logo) ===== */
+.home__header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  width: 100vw;
+  padding: 0.75rem 1.5rem;
+  border: solid 1px var(--clr-grey);
+  background-color: #fff;
+}
+
+.header-topbar {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+}
+
+.header-topbar__content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  flex: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.home__user-section {
+  flex-shrink: 0;
+}
+
+.home__username {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--clr-purple-dark-2);
+}
+
+.home__logo-section {
+  flex-shrink: 0;
+}
+
+.home__logo {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+}
+
+.home__search-section {
+  flex: 1;
+  max-width: 500px;
+  padding: 0 1rem;
+}
+
+.search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--clr-light);
+  border: solid 1px var(--clr-grey);
+  border-radius: var(--border-radius);
+  padding: 0.875rem 1rem;
+}
+
+.search-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--clr-purple-dark-2);
+  margin-right: 0.75rem;
+}
+
+.search-input {
+  background: none;
+  border: none;
+  color: var(--clr-dark);
+  font-size: 16px;
+  flex: 1;
+  outline: none;
+}
+
+/* ===== BELOW HEADER ===== */
+.home__container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.home__main {
+  flex: 1;
+  /* EMPTY */
+}
+
+/* ===== SIDEBAR TABS (Explore/Live/Party/PK in Sidebar.jsx) ===== */
+.sidebar {
+  /* Your existing sidebar with tabs/buttons inside */
+}
+
+/* Home.css - Smaller buttons under navbar */
+
+/* ===== MAIN WITH TIGHT BUTTONS ===== */
+.home__main {
+  padding-top: 1em;
+  padding-left: 1em;
+}
+
+/* ===== COMPACT BUTTONS ===== */
+.home__nav-buttons {
+  display: flex;
+  gap: 0.75rem; /* Tighter gap */
+  width: 100%;
+}
+
+.nav-button {
+  background: var(--clr-light, white);
+  color: var(--clr-purple-dark-2, #581c87);
+  border: solid 1px var(--clr-grey);
+  padding: 0.75rem 1em; /* Smaller: 14px 24px */
+  border-radius: calc(var(--border-radius) * 2.5); /* Slightly smaller radius */
+  font-weight: 600;
+  font-size: 0.9rem; /* 16px */
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.nav-button:hover {
+  background: var(--clr-purple-dark-2);
+  color: var(--clr-light);
+  transform: translateY(-1px); /* Subtle lift */
+}

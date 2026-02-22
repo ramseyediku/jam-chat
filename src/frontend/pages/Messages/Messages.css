@@ -1,0 +1,31 @@
+.messages {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  color: #fff;
+}
+
+.messages__header {
+  background: #111;
+  padding: 16px 24px;
+}
+
+.messages__title {
+  margin: 0;
+  font-size: 20px;
+}
+
+.messages__container {
+  display: flex;
+  flex: 1;
+}
+
+.messages__main {
+  flex: 1;
+  padding: 24px;
+  background: #071127;
+}
+
+.messages__empty {
+  color: #9aa4b2;
+}

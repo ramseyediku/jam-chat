@@ -1,0 +1,26 @@
+.explore {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  color: #fff;
+}
+
+.explore__header {
+  background: #111;
+  padding: 16px 24px;
+  h1 {
+    margin: 0;
+    font-size: 20px;
+  }
+}
+
+.explore__container {
+  display: flex;
+  flex: 1;
+}
+
+.explore__main {
+  flex: 1;
+  padding: 24px;
+  background: #071127;
+}

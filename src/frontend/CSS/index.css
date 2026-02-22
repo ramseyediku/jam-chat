@@ -1,0 +1,55 @@
+@import url('reset.css');
+
+/* colors */
+:root {
+  --clr-red: hsl(342, 87%, 45%);
+  --clr-red-error: hsla(0, 100%, 50%, 0.742);
+
+  --clr-blue: hsl(217, 89%, 61%);
+  --clr-blue-trans: hsla(217, 89%, 61%, 0.323);
+  --clr-blue-dark-1: hsl(249, 28%, 18%);
+
+  --clr-purple: hsl(295, 91%, 46%);
+  --clr-purple-dark-1: hsl(320, 83%, 43%);
+  --clr-purple-dark-2: hsl(295, 31%, 14%);
+
+  --clr-dark: hsl(0, 0%, 0%);
+  --clr-light: hsl(0, 0%, 100%);
+  --clr-grey: hsl(0, 0%, 66%);
+
+  --border-radius: 10px;
+}
+
+/* Component Styles */
+.button {
+  border-radius: calc(var(--border-radius) * 3);
+  padding: 0.8em 3em;
+  display: flex;
+  justify-content: center;
+  gap: 0.5em;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  width: 100%;
+  border: 0;
+
+  &:focus-within,
+  &:hover {
+    transform: all 0.2s ease-in-out;
+  }
+}
+
+.input {
+  border: solid 1px var(--clr-grey);
+  width: 100%;
+  padding: 1em;
+  border-radius: var(--border-radius);
+}
+
+.error {
+  background-color: var(--clr-red-error);
+  color: var(--clr-light);
+  padding: 0.75em;
+  border-radius: var(--border-radius);
+  text-align: center;
+  width: 100%;
+}
