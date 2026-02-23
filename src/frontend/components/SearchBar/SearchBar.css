@@ -1,0 +1,107 @@
+.search-container {
+  position: relative; /* Anchor for absolute dropdown */
+  display: inline-block; /* Shrink-wrap container */
+  width: 100%; /* Or fixed max-width like 500px */
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 16px 12px 44px; /* Space for icon */
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 24px; /* Rounded like modern apps */
+  font-size: 16px;
+  color: #fff;
+  outline: none;
+  transition:
+    box-shadow 0.2s,
+    border-color 0.2s;
+}
+
+.search-input:focus {
+  border-color: #555;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  color: #999;
+}
+
+.search-results {
+  position: absolute;
+  top: calc(100% + 4px); /* Slight gap below input */
+  left: 0;
+  right: 0; /* Full container width */
+  background: #1f1f1f; /* Slightly lighter bg */
+  border: 1px solid #333;
+  border-radius: 12px; /* Match input radius */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); /* Overlay shadow */
+  list-style: none;
+  margin: 0;
+  padding: 8px 0;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 1000; /* Above everything */
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px); /* Slide-up entrance */
+  transition: all 0.2s ease-out;
+}
+
+/* Show when results exist */
+.search-container:has(.search-results:not(:empty)) .search-results,
+.search-results:not(:empty) {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.search-result-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.search-result-item:hover,
+.search-result-item:focus-within {
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.search-result-item:last-child {
+  border-bottom: none;
+}
+
+.search-result-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.search-result-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0; /* Allow truncation */
+}
+
+.search-result-username {
+  font-size: 15px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
