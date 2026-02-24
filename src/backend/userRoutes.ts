@@ -1,6 +1,5 @@
 import { Database } from 'bun:sqlite';
 import { SignJWT, jwtVerify } from 'jose';
-
 const db = new Database('dev.db');
 
 // ===== JWT SECRET (add if missing) =====
@@ -181,41 +180,143 @@ export const userRoutes = {
     },
   },
 
-  // GET /api/search?query=... - Search users by username
+  // 1. SEARCH API - Dropdown preview (lightweight)
   '/api/search': {
     GET: async (req: Request) => {
       try {
-        const url = new URL(req.url, 'http://localhost');
-        //! Base URL is required to parse query params (will update for production)
-        const query = url.searchParams.get('query')?.toLowerCase() || '';
+        const url = new URL(req.url, `http://${req.headers.get('host')}`);
+        const query = url.searchParams.get('query')?.trim().toLowerCase();
 
-        if (!query) {
-          return new Response(JSON.stringify([]), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' },
+        if (!query || query.length < 2) {
+          return Response.json([], {
+            headers: { 'Cache-Control': 'public, max-age=2' },
           });
         }
 
         const users = db
           .prepare(
             `
-          SELECT id, prof_pic, username, age, gender, level, following, fans 
-          FROM users
-          WHERE LOWER(username) LIKE ?
-          LIMIT 20
-        `
+        SELECT id, prof_pic, username
+        FROM users 
+        WHERE LOWER(username) LIKE ?
+        ORDER BY fans DESC
+        LIMIT 8
+      `
           )
           .all(`%${query}%`);
 
-        return new Response(JSON.stringify(users), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
+        return Response.json(users, {
+          headers: { 'Cache-Control': 'public, max-age=5' },
         });
+      } catch (err) {
+        console.error('Search error:', err);
+        return Response.json([], { status: 500 });
+      }
+    },
+  },
+
+  // 2. USER DETAIL API - Profile page (full data, unchanged)
+  '/api/user': {
+    GET: async (req: Request) => {
+      try {
+        const url = new URL(req.url, `http://${req.headers.get('host')}`);
+        const idParam = url.searchParams.get('id');
+        const usernameParam = url.searchParams.get('username')?.toLowerCase();
+
+        let user = null;
+
+        if (idParam) {
+          user = db
+            .prepare(
+              `
+          SELECT id, prof_pic, username, age, gender, level, following, fans, bio
+          FROM users WHERE id = ?
+        `
+            )
+            .get(Number(idParam));
+        } else if (usernameParam) {
+          user = db
+            .prepare(
+              `
+          SELECT id, prof_pic, username, age, gender, level, following, fans, bio
+          FROM users WHERE LOWER(username) = ?
+        `
+            )
+            .get(usernameParam);
+        } else {
+          return Response.json(
+            { error: 'Missing id or username' },
+            { status: 400 }
+          );
+        }
+
+        if (!user) {
+          return Response.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        return Response.json(user);
+      } catch (err) {
+        console.error('User fetch error:', err);
+        return Response.json(
+          { error: 'Failed to fetch user' },
+          { status: 500 }
+        );
+      }
+    },
+  },
+
+  // ===== CHAT HISTORY (add to userRoutes) =====
+  '/api/chat/history': {
+    GET: async (req: Request) => {
+      try {
+        const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
+        if (!token) return new Response('Unauthorized', { status: 401 });
+
+        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const myId = payload.sub;
+        const url = new URL(req.url);
+        const partnerId = Number(url.searchParams.get('partnerId'));
+
+        const history = db
+          .prepare(
+            `
+        SELECT from_id, to_id, message, created_at
+        FROM messages
+        WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)
+        ORDER BY created_at ASC
+        LIMIT 50
+      `
+          )
+          .all(myId, partnerId, partnerId, myId);
+
+        return Response.json(history);
       } catch {
-        return new Response(JSON.stringify({ error: 'Search failed' }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' },
-        });
+        return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    },
+  },
+
+  '/api/chat/send': {
+    POST: async (req: Request) => {
+      try {
+        const { toId, message } = await req.json();
+        const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
+        if (!token)
+          return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const { payload } = await jwtVerify(token, JWT_SECRET);
+
+        // SAVE TO DB
+        db.prepare(
+          `
+        INSERT INTO messages (from_id, to_id, message)
+        VALUES (?, ?, ?)
+      `
+        ).run(payload.sub, toId, message);
+
+        return Response.json({ success: true });
+      } catch {
+        return Response.json({ error: 'Failed' }, { status: 500 });
       }
     },
   },

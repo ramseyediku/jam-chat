@@ -4,6 +4,8 @@ import Messages from './pages/Messages/Messages';
 import Explore from './pages/Explore/Explore';
 import Live from './pages/Live/Live';
 import Create from './pages/Create/Create';
+import Profile from './pages/Profile/Profile';
+import Chat from './pages/Chat/Chat';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 export function App() {
@@ -17,6 +19,11 @@ export function App() {
           <Route path="/explore" element={<Explore />} />
           <Route path="/live" element={<Live />} />
           <Route path="/create" element={<Create />} />
+          {/* Separate own profile vs others */}
+          <Route path="/profile" element={<Profile />} /> {/* Current user's */}
+          <Route path="/user/:id" element={<Profile />} />{' '}
+          {/* Other users from search */}
+          <Route path="/chat/:id" element={<Chat />} /> {/* ← THIS ONE */}
         </Routes>
       </BrowserRouter>
     </>

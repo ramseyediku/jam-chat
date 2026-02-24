@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './SearchBar.css';
 
 export default function SearchBar({ searchQuery, setSearchQuery }) {
   const [results, setResults] = useState([]);
-  const debounceTimerRef = useRef(null);
-  const lastCallTimeRef = useRef(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -17,10 +17,16 @@ export default function SearchBar({ searchQuery, setSearchQuery }) {
         .then((res) => res.json())
         .then(setResults)
         .catch(console.error);
-    }, 300); // 300ms debounce (we can adjust this as needed)
+    }, 300);
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  const handleUserClick = (userId, username) => {
+    setResults([]);
+    setSearchQuery('');
+    navigate(`/user/${userId}`);
+  };
 
   return (
     <div className="home__search-section">
@@ -46,9 +52,16 @@ export default function SearchBar({ searchQuery, setSearchQuery }) {
           onChange={(e) => setSearchQuery(e.target.value)}
         />
         {results.length > 0 && (
-          <ul className="search-results">
+          <ul className="search-results" role="listbox">
             {results.map((user) => (
-              <li key={user.id} className="search-result-item">
+              <li
+                key={user.id}
+                className="search-result-item"
+                role="option"
+                onClick={() => handleUserClick(user.id, user.username)}
+                onMouseDown={(e) => e.preventDefault()}
+                tabIndex={0}
+              >
                 <img
                   src={user.prof_pic}
                   alt={user.username}
