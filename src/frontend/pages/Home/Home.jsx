@@ -30,8 +30,13 @@ export default function Home() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         username={username}
-        setUsername={setUsername}
+        setUse
+        rname={setUsername}
       />
+
+      <header className="create__header">
+        <h1 className="create__title">Home</h1>
+      </header>
 
       {/* ===== SIDEBAR WITH TABS BELOW ===== */}
       <section className="home__container">
