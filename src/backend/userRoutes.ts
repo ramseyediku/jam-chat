@@ -320,4 +320,95 @@ export const userRoutes = {
       }
     },
   },
+
+  // === POST /api/rooms ===
+  // userRoutes.ts - Rooms with your existing DB (NO table creation)
+  '/api/rooms': {
+    POST: async (req: Request) => {
+      try {
+        // JWT → hostId
+        const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
+        if (!token)
+          return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+        const verified = await jwtVerify(token, JWT_SECRET);
+        const hostId = Number(verified.payload.sub);
+
+        const data = await req.formData();
+        const name = data.get('name') as string;
+        const description = (data.get('description') as string) || '';
+        const type = (data.get('type') as string) || 'public';
+
+        if (!name || name.length < 3) {
+          return Response.json(
+            { error: 'Name required (3+ chars)' },
+            { status: 400 }
+          );
+        }
+
+        const roomId = Date.now().toString(36);
+
+        // INSERT (your existing rooms table)
+        db.prepare(
+          `
+        INSERT INTO audiorooms (id, name, description, type, hostId, imageUrl)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `
+        ).run(
+          roomId,
+          name,
+          description,
+          type,
+          hostId,
+          '/rooms/placeholder.jpg' // TODO: upload
+        );
+
+        return Response.json({
+          id: roomId,
+          name,
+          description,
+          type,
+          hostId,
+          imageUrl: '/rooms/placeholder.jpg',
+          createdAt: new Date().toISOString(),
+          speakers: [hostId],
+          listenerCount: 0,
+        });
+      } catch (error) {
+        console.error('Room creation:', error);
+        return Response.json(
+          { error: 'Failed to create room' },
+          { status: 500 }
+        );
+      }
+    },
+  },
+
+  '/api/rooms/:id': {
+    GET: async (req: Request) => {
+      try {
+        const url = new URL(req.url);
+        const roomId = url.pathname.split('/').pop();
+
+        const room = db
+          .prepare('SELECT * FROM audiorooms WHERE id = ?')
+          .get(roomId);
+        if (!room) {
+          return Response.json({ error: 'Room not found' }, { status: 404 });
+        }
+
+        return Response.json(room);
+      } catch (error) {
+        return Response.json({ error: 'Server error' }, { status: 500 });
+      }
+    },
+
+    DELETE: async (req) => {
+      const url = new URL(req.url);
+      const roomId = url.pathname.split('/').pop();
+
+      db.prepare('DELETE FROM audiorooms WHERE id = ?').run(roomId);
+      return Response.json({ success: true });
+    },
+  },
 };

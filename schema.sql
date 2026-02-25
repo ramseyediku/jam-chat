@@ -63,3 +63,17 @@ INSERT INTO messages (from_id, to_id, message) VALUES
 (3, 1, 'demo1, wanna PK battle later?'),
 (1, 3, 'Hell yeah! 8PM?'),
 (2, 3, 'You guys are too competitive 😂');
+
+-- audio rooms table
+DROP TABLE IF EXISTS audiorooms;
+CREATE TABLE IF NOT EXISTS audiorooms (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    type TEXT DEFAULT 'public',
+    hostId INTEGER,
+    imageUrl TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    speakers TEXT DEFAULT '[]',  -- JSON array of speaker IDs
+    listenerCount INTEGER DEFAULT 0
+  )

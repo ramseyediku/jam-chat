@@ -30,8 +30,7 @@ export default function Home() {
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         username={username}
-        setUse
-        rname={setUsername}
+        setUsername={setUsername}
       />
 
       <header className="create__header">

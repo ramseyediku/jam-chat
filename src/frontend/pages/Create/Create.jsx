@@ -2,11 +2,13 @@
 import Sidebar from '../../components/Sidebar/Sidebar';
 import './Create.css';
 import Header from '../../components/Header/Header';
+import AudioRoomModal from '../../components/AudioRoomModal/AudioRoomModal'; // ADD
 import { useEffect, useState } from 'react';
 
 export default function Create() {
   const [username, setUsername] = useState('Guest');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAudioModal, setShowAudioModal] = useState(false); // ADD
 
   return (
     <div className="create">
@@ -30,7 +32,10 @@ export default function Create() {
               <span>Go Live</span>
             </button>
 
-            <button className="create-action audio">
+            <button
+              className="create-action audio"
+              onClick={() => setShowAudioModal(true)} // ADD
+            >
               <div className="create-icon">🎤</div>
               <span>Audio Live</span>
             </button>
@@ -46,6 +51,10 @@ export default function Create() {
             </button>
           </div>
         </main>
+        {/* ADD: Audio Room Modal */}
+        {showAudioModal && (
+          <AudioRoomModal onClose={() => setShowAudioModal(false)} />
+        )}
       </section>
     </div>
   );
