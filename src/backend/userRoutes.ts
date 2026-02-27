@@ -265,62 +265,6 @@ export const userRoutes = {
     },
   },
 
-  // ===== CHAT HISTORY (add to userRoutes) =====
-  '/api/chat/history': {
-    GET: async (req: Request) => {
-      try {
-        const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
-        if (!token) return new Response('Unauthorized', { status: 401 });
-
-        const { payload } = await jwtVerify(token, JWT_SECRET);
-        const myId = payload.sub;
-        const url = new URL(req.url);
-        const partnerId = Number(url.searchParams.get('partnerId'));
-
-        const history = db
-          .prepare(
-            `
-        SELECT from_id, to_id, message, created_at
-        FROM messages
-        WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)
-        ORDER BY created_at ASC
-        LIMIT 50
-      `
-          )
-          .all(myId, partnerId, partnerId, myId);
-
-        return Response.json(history);
-      } catch {
-        return Response.json({ error: 'Unauthorized' }, { status: 401 });
-      }
-    },
-  },
-
-  '/api/chat/send': {
-    POST: async (req: Request) => {
-      try {
-        const { toId, message } = await req.json();
-        const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
-        if (!token)
-          return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
-        const { payload } = await jwtVerify(token, JWT_SECRET);
-
-        // SAVE TO DB
-        db.prepare(
-          `
-        INSERT INTO messages (from_id, to_id, message)
-        VALUES (?, ?, ?)
-      `
-        ).run(payload.sub, toId, message);
-
-        return Response.json({ success: true });
-      } catch {
-        return Response.json({ error: 'Failed' }, { status: 500 });
-      }
-    },
-  },
-
   // === POST /api/rooms ===
   // userRoutes.ts - Rooms with your existing DB (NO table creation)
   '/api/rooms': {

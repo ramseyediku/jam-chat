@@ -6,7 +6,6 @@ import Live from './pages/Live/Live';
 import Create from './pages/Create/Create';
 import Profile from './pages/Profile/Profile';
 import Chat from './pages/Chat/Chat';
-import AudioRoom from './pages/AudioRoom/AudioRoom';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 export function App() {
@@ -25,7 +24,6 @@ export function App() {
           <Route path="/user/:id" element={<Profile />} />{' '}
           {/* Other users from search */}
           <Route path="/chat/:id" element={<Chat />} /> {/* ← THIS ONE */}
-          <Route path="/audio/:roomId" element={<AudioRoom />} />{' '}
         </Routes>
       </BrowserRouter>
     </>

@@ -49,3 +49,6 @@ prettier.config.js
 eslint.config.js
 .prettierrc
 bun-env.d.ts
+
+
+user_uuids.json

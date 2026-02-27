@@ -52,9 +52,7 @@ export function Login() {
       const data = await response.json();
 
       if (response.ok) {
-        // SUCCESS → Navigate to /home
         navigate('/home');
-        console.log('Registration successful:', data);
         return;
       }
 

@@ -1,194 +1,147 @@
-interface WSData {
+interface RequestData {
   userId: number;
   username: string;
-  toId?: number; // Chat
-  roomId?: string; // Audio
-  roomType?: 'chat' | 'audio';
 }
 
 import { serve } from 'bun';
 import index from '../frontend/index.html';
 import { userRoutes } from './userRoutes';
 
-const server = serve<WSData>({
+const server = serve<RequestData>({
   routes: {
+    '/api/agora/token': async (req) => {
+      const url = new URL(req.url);
+      const userId = url.searchParams.get('userId');
+      console.log('Token req:', req.url, 'userId:', userId); // ← Add this
+      if (!userId) {
+        return new Response('Missing userId: ' + userId, { status: 400 });
+      } else {
+        console.log('Generating token for userId:', userId);
+      }
+
+      // JWT auth
+      const cookieToken = req.headers
+        .get('Cookie')
+        ?.match(/token=([^;]+)/)?.[1];
+      if (!cookieToken) return new Response('Unauthorized', { status: 401 });
+
+      let payload;
+      try {
+        const { jwtVerify } = await import('jose');
+        const JWTSECRET = new TextEncoder().encode(
+          Bun.env.JWTSECRET || 'your-secret'
+        );
+        payload = await jwtVerify(cookieToken, JWTSECRET);
+      } catch {
+        return new Response('Invalid token', { status: 401 });
+      }
+
+      // Load UUID from file
+      let uuidData: Record<string, string> = {};
+      try {
+        const file = Bun.file('user_uuids.json');
+        if (await file.exists()) {
+          uuidData = JSON.parse(await file.text());
+        }
+      } catch {
+        // File doesn't exist or invalid JSONf
+      }
+
+      const userUuid = uuidData[userId];
+      if (!userUuid)
+        return new Response(
+          'User not registered. Call /api/agora/register first.',
+          { status: 400 }
+        );
+
+      try {
+        const { ChatTokenBuilder } = await import('agora-token');
+        const token = ChatTokenBuilder.buildUserToken(
+          Bun.env.AGORA_APP_KEY!, // Chat AppKey (org#appId from Console)
+          Bun.env.AGORA_APP_CERT!, // Chat App Certificate
+          userUuid, // UUID, not username
+          24 * 60 * 60 // 24h
+        );
+        return new Response(token);
+      } catch (err) {
+        console.error('Chat token error:', err);
+        return new Response('Token generation failed', { status: 500 });
+      }
+    },
+
+    '/api/agora/register': async (req) => {
+      const { userId } = await req.json();
+      // JWT auth
+      const cookieToken = req.headers
+        .get('Cookie')
+        ?.match(/token=([^;]+)/)?.[1];
+
+      if (!cookieToken) return new Response('Unauthorized', { status: 401 });
+      const ORG_APP = ['7110029131', '1664881']; // Good
+
+      const { ChatTokenBuilder } = await import('agora-token');
+      const APP_TOKEN = ChatTokenBuilder.buildAppToken(
+        Bun.env.AGORA_APP_KEY!,
+        Bun.env.AGORA_APP_CERT!,
+        60 * 60 * 24 // 24h
+      );
+
+      const APP_TOKEN2 =
+        '007eJxTYLjTJnLO80h86/HgttBwlsalDy9f+mLiZbAhdPGyhXMZ3f8pMKSmmRolGpolGaYmpZlYmBlYmKemGhmZmJpZplmYGCanrCpbkNkQyMiw568IIyMDKwMjAxMDiM/AAADxeB9V';
+      console.log(APP_TOKEN2);
+      try {
+        const response = await fetch(
+          `https://a71.chat.agora.io/${ORG_APP[0]}/${ORG_APP[1]}/users`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${APP_TOKEN2}`,
+            },
+            body: JSON.stringify([{ username: userId }]),
+          }
+        );
+        if (!response.ok) {
+          const errData = await response.text();
+          console.error('Register failed:', errData);
+          console.log('SOMEBODY HELP ME');
+          return new Response(`Register failed: ${errData}`, { status: 500 });
+        }
+        const data = await response.json();
+        const uuid = data.entities?.[0]?.uuid;
+        if (!uuid) {
+          console.error('No UUID in response:', data);
+          return new Response('No UUID returned from Agora', { status: 500 });
+        }
+        // Load existing UUIDs
+        let uuidData: Record<string, string> = {};
+        try {
+          const file = Bun.file('user_uuids.json');
+          if (await file.exists()) {
+            uuidData = JSON.parse(await file.text());
+          }
+        } catch {
+          // Ignore
+        }
+        // Save/update UUID
+        uuidData[userId] = uuid;
+        await Bun.write('user_uuids.json', JSON.stringify(uuidData, null, 2));
+        console.log(`Registered ${userId} with UUID: ${uuid}`);
+        return new Response('OK');
+      } catch (err) {
+        console.error('Register error:', err);
+        return new Response('Register failed', { status: 500 });
+      }
+    },
+
     // ===== USER ROUTES =====
     ...userRoutes,
     '/*': index,
   },
 
-  // ===== WEBSOCKETS FOR LIVE CHAT + AUDIO =====
-  websocket: {
-    open(ws) {
-      if (ws.data.roomType === 'audio' && ws.data.roomId) {
-        // Audio: subscribe to specific room + global notifications
-        ws.subscribe(`audio${ws.data.roomId}`);
-        ws.subscribe('audio-global');
-        console.log(
-          '✅ Audio WS OPEN:',
-          ws.data.username,
-          'in room',
-          ws.data.roomId
-        );
-      } else if (ws.data.toId) {
-        // Chat: P2P room (existing)
-        const roomId = Math.min(ws.data.userId!, ws.data.toId!);
-        ws.subscribe(`chat${roomId}`);
-        ws.subscribe('global');
-        console.log('✅ Chat WS OPEN:', ws.data.username, 'to', ws.data.toId);
-      }
-    },
-    message(ws, message) {
-      console.log('📨 WS MSG:', ws.data.username, '->', message);
-      try {
-        const data =
-          typeof message === 'string' ? JSON.parse(message) : message;
-
-        if (ws.data.roomType === 'audio' && ws.data.roomId) {
-          // Audio: broadcast typed events to room
-          ws.publish(`audio${ws.data.roomId}`, message);
-        } else if (ws.data.toId) {
-          // Chat: existing P2P logic
-          const roomId = Math.min(ws.data.userId!, ws.data.toId!);
-          ws.publish(`chat${roomId}`, message);
-        }
-      } catch (e) {
-        // Raw message fallback (chat-compatible)
-        if (ws.data.roomType === 'audio' && ws.data.roomId) {
-          ws.publish(`audio${ws.data.roomId}`, message);
-        } else if (ws.data.toId) {
-          const roomId = Math.min(ws.data.userId!, ws.data.toId!);
-          ws.publish(`chat${roomId}`, message);
-        }
-      }
-    },
-    close(ws, code, reason) {
-      console.log(`${ws.data.username} left (${ws.data.roomType || 'chat'})`);
-      console.log(
-        '❌ WS CLOSE:',
-        ws.data.username,
-        'code:',
-        code,
-        'reason:',
-        reason
-      );
-    },
-  },
-
-  // ===== CONNECTION UPGRADE FOR WEBSOCKETS =====
-  async fetch(req, server) {
-    const url = new URL(req.url);
-    if (
-      url.pathname === '/api/chat' &&
-      req.method === 'GET' &&
-      req.headers.get('upgrade') === 'websocket'
-    ) {
-      const toId = Number(url.searchParams.get('toId'));
-      if (isNaN(toId)) return new Response('Bad toId', { status: 400 });
-
-      // JWT (reuse logic - paste your exact token parsing from userRoutes)
-      const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
-      if (!token)
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-
-      let payload;
-      try {
-        const { jwtVerify } = await import('jose');
-        const JWTSECRET = new TextEncoder().encode(
-          Bun.env.JWTSECRET || 'your-secret'
-        );
-        payload = await jwtVerify(token, JWTSECRET);
-      } catch {
-        return new Response(JSON.stringify({ error: 'Invalid token' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      if (!payload?.payload?.sub || !payload.payload.username) {
-        return new Response(JSON.stringify({ error: 'Invalid payload' }), {
-          status: 401,
-        });
-      }
-
-      const success = server.upgrade(req, {
-        data: {
-          userId: Number(payload.payload.sub),
-          username: payload.payload.username,
-          toId,
-        },
-      });
-
-      if (!success) return new Response('Upgrade failed', { status: 400 });
-    }
-
-    // index.ts - ADD to async fetch() BEFORE chat WS
-    if (
-      url.pathname === '/api/audio' &&
-      req.method === 'GET' &&
-      req.headers.get('upgrade') === 'websocket'
-    ) {
-      console.log('🔄 /api/audio WS upgrade attempt'); // ← ADD
-
-      const roomIdParam = url.searchParams.get('roomId');
-      console.log('📍 roomId param:', roomIdParam); // ADD debug
-
-      if (!roomIdParam) {
-        console.log('❌ Invalid roomId:', roomIdParam); // ← ADD
-        return new Response('Invalid roomId', { status: 400 });
-      }
-
-      // JWT auth (reuse chat logic)
-      const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
-      if (!token) {
-        console.log('❌ No token'); // ← ADD
-        return new Response('Unauthorized', { status: 401 });
-      }
-
-      let payload;
-      try {
-        const { jwtVerify } = await import('jose');
-        const JWTSECRET = new TextEncoder().encode(
-          Bun.env.JWTSECRET || 'your-secret'
-        );
-        payload = await jwtVerify(token, JWTSECRET);
-      } catch {
-        return new Response(JSON.stringify({ error: 'Invalid token' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      if (!payload?.payload?.sub || !payload.payload.username) {
-        console.log('❌ Invalid payload structure'); // ← ADD
-        return new Response(JSON.stringify({ error: 'Invalid payload' }), {
-          status: 401,
-        });
-      }
-
-      const success = server.upgrade(req, {
-        data: {
-          userId: Number(payload.payload.sub),
-          username: payload.payload.username,
-          roomId: roomIdParam, // NEW: roomId
-          roomType: 'audio', // Distinguish from chat
-        },
-      });
-
-      if (!success) return new Response('Upgrade failed', { status: 400 });
-    }
-
-    // Fall through to routes unchanged
-    return undefined;
-  },
-
-  development: process.env.NODE_ENV !== 'production' && {
+  development: {
     hmr: true,
-    console: true,
   },
 });
 
-console.log(`🚀 Server running at ${server.url}`);
+console.log(`🚀 Agora Backend @ ${server.url}`);
