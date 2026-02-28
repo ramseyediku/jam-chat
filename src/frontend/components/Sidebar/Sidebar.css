@@ -1,21 +1,17 @@
 /* Sidebar.css - PC nested + Mobile purple scheme */
 
-/* ===== PC SIDEBAR (15% width) ===== */
 .sidebar {
-  width: 15%;
+  width: 17.5%;
   height: 100vh;
-  background: rgba(30, 27, 75, 0.95); /* Dark purple base */
-  backdrop-filter: blur(20px);
-}
+  background-color: var(--clr-purple);
 
-.sidebar ul {
-  list-style: none;
-  padding: 2rem 1rem;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  height: 100%;
+  ul {
+    padding: 2rem 1rem;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
 }
 
 .sidebar li {
@@ -27,12 +23,11 @@
 }
 
 .sidebar a {
-  text-decoration: none;
-  color: var(--clr-light, rgba(255, 255, 255, 0.9));
+  color: var(--clr-light);
   display: flex;
   align-items: center;
   gap: 1rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .sidebar li:hover,
@@ -52,65 +47,16 @@
 
 /* ===== ICONS (shared) ===== */
 .sidebar__icon {
-  font-size: 20px;
-  width: 28px;
-  height: 28px;
+  font-size: 1.35em;
+  width: 1.75em;
   text-align: center;
   flex-shrink: 0;
   transition: transform 0.3s ease;
-  filter: brightness(0) invert(1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-.sidebar__link:hover .sidebar__icon,
-.sidebar li:hover .sidebar__icon {
-  transform: scale(1.1);
-}
-
-/* ===== MOBILE BOTTOM NAV OVERRIDE ===== */
-@media (max-width: 1023px) {
-  .sidebar {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    height: auto;
-    padding: 0;
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%);
-    flex-direction: row;
-    justify-content: space-around;
-    border-radius: var(--border-radius) var(--border-radius) 0 0;
-    margin: 0 1rem;
-    padding: 1rem 0;
-  }
-
-  .sidebar ul {
-    padding: 0;
-    flex-direction: row;
-    gap: 0;
-    justify-content: space-around;
-    width: 100%;
-  }
-
-  .sidebar li {
-    padding: 0.5rem;
-    margin: 0;
-    flex: 1;
-    min-width: 56px;
-  }
-
-  .sidebar a {
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 12px;
-    padding: 0.5rem;
-  }
-
+.sidebar li:hover,
+.sidebar__link:hover {
   .sidebar__icon {
-    width: 24px;
-    height: 24px;
+    transform: scale(1.25);
   }
 }

@@ -2,11 +2,8 @@
 
 /* ===== ROOT ===== */
 .home {
-  min-height: 100vh;
-  background: var(--clr-purple-dark-3);
-  color: white;
   display: flex;
-  flex-direction: column;
+  gap: 1em;
 }
 
 /* ===== TOP BAR (Username + Search + Logo) ===== */
@@ -19,24 +16,7 @@
   width: 100vw;
   padding: 0.75rem 1.5rem;
   border: solid 1px var(--clr-grey);
-  background-color: #fff;
-}
-
-.header-topbar {
-  display: flex;
-  align-items: center;
-  min-height: 56px;
-}
-
-.header-topbar__content {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-  flex: 1;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 0 1rem;
+  background-color: var(--clr-light);
 }
 
 .home__user-section {
@@ -102,11 +82,6 @@
   /* EMPTY */
 }
 
-/* ===== SIDEBAR TABS (Explore/Live/Party/PK in Sidebar.jsx) ===== */
-.sidebar {
-  /* Your existing sidebar with tabs/buttons inside */
-}
-
 /* Home.css - Smaller buttons under navbar */
 
 /* ===== MAIN WITH TIGHT BUTTONS ===== */
@@ -138,4 +113,69 @@
   background: var(--clr-purple-dark-2);
   color: var(--clr-light);
   transform: translateY(-1px); /* Subtle lift */
+}
+
+.home__aside {
+  width: 25em;
+  height: 15em;
+  margin-right: 10em;
+}
+
+/* ===== USER CARD IN ASIDE ===== */
+.home__aside {
+  width: 25em;
+  height: 15em;
+  margin-right: 10em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-card {
+  border: solid 2px var(--clr-grey);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 18rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-card:hover {
+  border-color: var(--clr-purple-dark-2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.user-card__avatar {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 50%;
+}
+
+.user-avatar {
+  object-fit: contain;
+}
+
+.user-card__info {
+  text-align: center;
+}
+
+.user-card__username {
+  display: block;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--clr-purple-dark-2);
+  margin-bottom: 0.25rem;
+}
+
+.user-card__label {
+  font-size: 0.875rem;
+  color: var(--clr-grey-dark);
+  font-weight: 500;
 }

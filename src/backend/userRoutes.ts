@@ -1,5 +1,9 @@
 import { Database } from 'bun:sqlite';
 import { SignJWT, jwtVerify } from 'jose';
+import formidable from 'formidable';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 const db = new Database('dev.db');
 
 // ===== JWT SECRET (add if missing) =====
@@ -12,71 +16,129 @@ export const userRoutes = {
   '/api/register': {
     POST: async (req: Request) => {
       try {
-        const { username, age, gender, bio } = await req.json();
+        const data = await req.formData();
+        const username = (data.get('username') as string)?.trim().toLowerCase();
+        const age = parseInt((data.get('age') as string) || '0');
+        const gender = data.get('gender') as string;
+        const bio = (data.get('bio') as string)?.trim() || '';
 
-        // VALIDATION
-        if (!['male', 'female'].includes(gender)) {
-          return new Response(
-            JSON.stringify({ error: 'Gender: male/female only' }),
-            {
-              status: 400,
-              headers: { 'Content-Type': 'application/json' },
-            }
-          );
-        }
-        if (age < 18 || age > 105) {
-          return new Response(JSON.stringify({ error: 'Age 18-105 only' }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' },
-          });
+        // Validation
+        if (
+          !username ||
+          username.length < 3 ||
+          !['male', 'female'].includes(gender) ||
+          age < 18 ||
+          age > 105
+        ) {
+          return Response.json({ error: 'Invalid data' }, { status: 400 });
         }
 
-        // INSERT USER
-        const insert = db.prepare(`
-          INSERT INTO users (prof_pic, username, age, gender) 
-          VALUES (?, ?, ?, ?)
-        `);
-        const result = insert.run(
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&size=128`,
-          username.toLowerCase(),
-          age,
-          gender
+        // Unique checks
+        if (
+          db.prepare('SELECT id FROM users WHERE username = ?').get(username)
+        ) {
+          return Response.json({ error: 'Username taken' }, { status: 400 });
+        }
+
+        let uniqueId;
+        do {
+          uniqueId = crypto.randomInt(10000000, 99999999);
+        } while (
+          db.prepare('SELECT id FROM users WHERE uniqueId = ?').get(uniqueId)
         );
 
-        // GET USER PROFILE
-        const user = db
-          .prepare(
-            `
-          SELECT id, prof_pic, username, age, gender, level, following, fans 
+        // PFP upload (optional - DB defaults if omitted)
+        const pfpFile = data.get('pfp') as File | null;
+        if (pfpFile) {
+          const bytes = await pfpFile.arrayBuffer();
+          const ext = path.extname(pfpFile.name) || '.jpg';
+          const filename = `pfp_${uniqueId}_${Date.now()}${ext}`;
+          const filePath = path.join(
+            process.cwd(),
+            'uploads/profile_images',
+            filename
+          );
+          await Bun.write(filePath, new Uint8Array(bytes));
+
+          // Explicitly set uploaded path
+          const profileImage = `/uploads/profile_images/${filename}`;
+
+          // INSERT with uploaded PFP
+          const insert = db.prepare(`
+          INSERT INTO users (profile_image, uniqueId, username, age, gender, bio, country)
+          VALUES (?, ?, ?, ?, ?, ?, 'United Kingdom')
+        `);
+          const result = insert.run(
+            profileImage,
+            uniqueId,
+            username,
+            age,
+            gender,
+            bio
+          );
+
+          // Rest unchanged...
+          const user = db
+            .prepare(
+              `
+          SELECT id, profile_image, uniqueId, username, age, gender, bio, country 
           FROM users WHERE id = ?
         `
-          )
-          .get(result.lastInsertRowid);
+            )
+            .get(result.lastInsertRowid);
 
-        // JWT TOKEN
-        const token = await new SignJWT({
-          sub: user.id,
-          username: user.username,
-        })
-          .setProtectedHeader({ alg: 'HS256' })
-          .setExpirationTime('7d')
-          .sign(JWT_SECRET);
+          // JWT + response (unchanged)
+          const token = await new SignJWT({
+            sub: user.id,
+            username: user.username,
+          })
+            .setProtectedHeader({ alg: 'HS256' })
+            .setExpirationTime('7d')
+            .sign(JWT_SECRET);
 
-        // COOKIE + RESPONSE
-        const headers = new Headers({ 'Content-Type': 'application/json' });
-        headers.append(
-          'Set-Cookie',
-          `token=${token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Strict`
-        );
-        return new Response(JSON.stringify({ user }), {
-          status: 201,
-          headers,
-        });
-      } catch {
-        return new Response(JSON.stringify({ error: 'Username taken' }), {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        });
+          const headers = new Headers({ 'Content-Type': 'application/json' });
+          headers.append(
+            'Set-Cookie',
+            `token=${token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Strict`
+          );
+          return Response.json({ user }, { status: 201, headers });
+        } else {
+          // No PFP - DB default handles profile_image
+          const insert = db.prepare(`
+          INSERT INTO users (uniqueId, username, age, gender, bio, country)
+          VALUES (?, ?, ?, ?, ?, 'United Kingdom')
+        `);
+          const result = insert.run(uniqueId, username, age, gender, bio);
+
+          // Fetch user (profile_image auto-defaulted)
+          const user = db
+            .prepare(
+              `
+          SELECT id, profile_image, uniqueId, username, age, gender, bio, country 
+          FROM users WHERE id = ?
+        `
+            )
+            .get(result.lastInsertRowid);
+
+          // JWT + response (same)
+          const token = await new SignJWT({
+            sub: user.id,
+            username: user.username,
+          })
+            .setProtectedHeader({ alg: 'HS256' })
+            .setExpirationTime('7d')
+            .sign(JWT_SECRET);
+
+          const headers = new Headers({ 'Content-Type': 'application/json' });
+          headers.append(
+            'Set-Cookie',
+            `token=${token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Strict`
+          );
+          return Response.json({ user }, { status: 201, headers });
+        }
+      } catch (err) {
+        console.error('Register error:', err);
+        return Response.json({ error: 'Registration failed' }, { status: 500 });
       }
     },
   },
@@ -91,18 +153,15 @@ export const userRoutes = {
           .get(username.toLowerCase());
 
         if (!user) {
-          return new Response(
-            JSON.stringify({
-              error: 'User not found. Try again or make new account.',
-            }),
+          return Response.json(
             {
-              status: 404,
-              headers: { 'Content-Type': 'application/json' },
-            }
+              error: 'User not found. Try again or make new account.',
+            },
+            { status: 404 }
           );
         }
 
-        // JWT TOKEN
+        // JWT (good)
         const token = await new SignJWT({
           sub: user.id,
           username: user.username,
@@ -116,22 +175,28 @@ export const userRoutes = {
           'Set-Cookie',
           `token=${token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Strict`
         );
+
+        // ❌ FIX 1: profile_image → prof_pic (your schema)
+        // ❌ FIX 2: Return full user (matches register)
         const profile = db
           .prepare(
             `
-          SELECT id, prof_pic, username, age, gender, level, following, fans FROM users WHERE id = ?
+          SELECT id, profile_image, uniqueId, username, age, gender, bio, country, level, following, fans 
+          FROM users WHERE id = ?
         `
           )
           .get(user.id);
 
-        return new Response(JSON.stringify({ user: profile }), {
-          status: 200,
-          headers,
-        });
-      } catch {
-        return new Response(JSON.stringify({ error: 'Login failed' }), {
-          status: 500,
-        });
+        return Response.json(
+          { user: profile },
+          {
+            status: 200,
+            headers,
+          }
+        );
+      } catch (err) {
+        console.error('Login error:', err); // ✅ Log error
+        return Response.json({ error: 'Login failed' }, { status: 500 });
       }
     },
   },
@@ -142,26 +207,26 @@ export const userRoutes = {
       try {
         const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
         if (!token) {
-          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            status: 401,
-          });
+          return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
         const { payload } = await jwtVerify(token, JWT_SECRET);
         const user = db
           .prepare(
             `
-          SELECT id, prof_pic, username, age, gender, level, following, fans 
+          SELECT id, profile_image, uniqueId, username, age, gender, bio, country, level, following, fans 
           FROM users WHERE id = ?
         `
           )
           .get(payload.sub);
-        return new Response(
-          JSON.stringify(user || { error: 'User not found' })
-        );
+
+        if (!user) {
+          return Response.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        return Response.json({ user }); // ✅ Wrap in { user }
       } catch {
-        return new Response(JSON.stringify({ error: 'Invalid token' }), {
-          status: 401,
-        });
+        return Response.json({ error: 'Invalid token' }, { status: 401 });
       }
     },
   },
@@ -177,6 +242,36 @@ export const userRoutes = {
         status: 200,
         headers,
       });
+    },
+  },
+
+  '/api/myprofile': {
+    GET: async (req: Request) => {
+      try {
+        const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
+        if (!token) {
+          return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const user = db
+          .prepare(
+            `
+          SELECT id, profile_image, uniqueId, username, age, gender, bio, country, 
+                 rcoins, diamonds, level, following, fans, isBlocked, isHost, agency
+          FROM users WHERE id = ?
+        `
+          )
+          .get(payload.sub);
+
+        if (!user) {
+          return Response.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        return Response.json({ user });
+      } catch {
+        return Response.json({ error: 'Invalid token' }, { status: 401 });
+      }
     },
   },
 
@@ -196,12 +291,16 @@ export const userRoutes = {
         const users = db
           .prepare(
             `
-        SELECT id, prof_pic, username
-        FROM users 
-        WHERE LOWER(username) LIKE ?
-        ORDER BY fans DESC
-        LIMIT 8
-      `
+          SELECT 
+            id, 
+            profile_image,  -- Updated from prof_pic
+            username,
+            fans  -- Using fans for sorting (matches old 'ORDER BY fans DESC')
+          FROM users 
+          WHERE LOWER(username) LIKE ?
+          ORDER BY fans DESC
+          LIMIT 8
+        `
           )
           .all(`%${query}%`);
 
@@ -229,18 +328,38 @@ export const userRoutes = {
           user = db
             .prepare(
               `
-          SELECT id, prof_pic, username, age, gender, level, following, fans, bio
-          FROM users WHERE id = ?
-        `
+            SELECT 
+              id, 
+              profile_image,  -- Updated from prof_pic
+              username, 
+              age, 
+              gender, 
+              level, 
+              following, 
+              fans, 
+              bio
+            FROM users 
+            WHERE id = ?
+          `
             )
             .get(Number(idParam));
         } else if (usernameParam) {
           user = db
             .prepare(
               `
-          SELECT id, prof_pic, username, age, gender, level, following, fans, bio
-          FROM users WHERE LOWER(username) = ?
-        `
+            SELECT 
+              id, 
+              profile_image,  -- Updated from prof_pic
+              username, 
+              age, 
+              gender, 
+              level, 
+              following, 
+              fans, 
+              bio
+            FROM users 
+            WHERE LOWER(username) = ?
+          `
             )
             .get(usernameParam);
         } else {

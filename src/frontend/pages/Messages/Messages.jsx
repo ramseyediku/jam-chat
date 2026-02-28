@@ -1,7 +1,6 @@
 // Messages.jsx - Messages overview with chats list
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import Header from '../../components/Header/Header';
 import Sidebar from '../../components/Sidebar/Sidebar';
 import './Messages.css';
 
@@ -40,17 +39,6 @@ export default function Messages() {
 
   return (
     <div className="messages">
-      {/* Reusable Header */}
-      <Header
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        username={username}
-        setUsername={setUsername}
-      />
-      <header className="messages__header">
-        <h1 className="messages__title">Messages</h1>
-      </header>
-
       <section className="messages__container">
         <Sidebar />
         <div className="messages__content">

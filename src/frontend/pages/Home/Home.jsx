@@ -1,14 +1,46 @@
-import React, { useEffect, useState } from 'react';
-import Header from '../../components/Header/Header';
+import { useEffect, useState, useCallback } from 'react';
+import SearchBar from '../../components/SearchBar/SearchBar';
 import Sidebar from '../../components/Sidebar/Sidebar';
+import { useNavigate } from 'react-router-dom';
+import defaultpfp from '../../assets/default-pfp.png';
 import './Home.css';
 
 export default function Home() {
-  const [username, setUsername] = useState('Guest');
+  const navigate = useNavigate();
+  const [username, setUsername] = useState('Loading...');
+  const [profileImage, setProfileImage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState([]);
 
+  const handleMyProfileClick = () => {
+    navigate('/myprofile'); // ✅ Navigate to your new MyProfile
+  };
+
+  // Fetch current user profile
+  const fetchUserProfile = useCallback(async () => {
+    try {
+      const res = await fetch('/api/myprofile', { credentials: 'include' });
+      if (res.ok) {
+        const { user } = await res.json();
+        setUsername(user.username || 'Guest');
+        if (user.profile_image == '') {
+          setProfileImage(defaultpfp);
+        } else {
+          setProfileImage(user.profile_image);
+        }
+        console.log(user.profile_image);
+      } else {
+        setUsername('Guest');
+        console.error('Bad response from my profile');
+      }
+    } catch (error) {
+      console.error('Failed to fetch profile:', error);
+      setUsername('Guest');
+    }
+  }, []);
+
   useEffect(() => {
+    fetchUserProfile();
     const fetchAllUsers = async () => {
       try {
         const res = await fetch('/api/users');
@@ -21,26 +53,15 @@ export default function Home() {
       }
     };
     fetchAllUsers();
-  }, []);
+  }, [fetchUserProfile]);
 
   return (
     <div className="home">
-      {/* Reusable Header */}
-      <Header
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        username={username}
-        setUsername={setUsername}
-      />
+      <Sidebar />
 
-      <header className="create__header">
-        <h1 className="create__title">Home</h1>
-      </header>
-
-      {/* ===== SIDEBAR WITH TABS BELOW ===== */}
-      <section className="home__container">
-        <Sidebar />
-        <main className="home__main">
+      <main className="home__main">
+        <SearchBar searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+        <section className="home__main__content">
           <div className="home__nav-buttons">
             <button className="nav-button nav-button--pk">PK Battles</button>
             <button className="nav-button nav-button--party">Party</button>
@@ -49,8 +70,29 @@ export default function Home() {
             </button>
             <button className="nav-button nav-button--explore">Explore</button>
           </div>
-        </main>
-      </section>
+        </section>
+      </main>
+
+      {/* ===== CURRENT USER CARD ===== */}
+      <aside className="home__aside">
+        <div
+          className="user-card"
+          onClick={handleMyProfileClick}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className="user-card__avatar">
+            <img
+              src={profileImage}
+              alt={`${username}'s profile`}
+              className="user-avatar"
+            />
+          </div>
+          <div className="user-card__info">
+            <span className="user-card__username">{username}</span>
+            <span className="user-card__label">My Profile</span>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }

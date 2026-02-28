@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import './Profile.css';
 import Sidebar from '../../components/Sidebar/Sidebar';
-import Header from '@/frontend/components/Header/Header';
 import { useNavigate } from 'react-router-dom';
 
 export default function Profile() {
@@ -53,7 +52,6 @@ export default function Profile() {
   if (error || !profile)
     return (
       <div className="profile-root">
-        <Header />
         <Sidebar />
         <div className="profile-error">{error || 'No profile found'}</div>
       </div>
@@ -61,12 +59,6 @@ export default function Profile() {
 
   return (
     <>
-      <Header
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        username={username}
-        setUsername={setUsername}
-      />
       <div className="profile-root">
         <Sidebar />
         <div className="profile-main">

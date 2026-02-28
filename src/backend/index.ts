@@ -9,10 +9,15 @@ interface WSData {
 import { serve } from 'bun';
 import index from '../frontend/index.html';
 import { userRoutes } from './userRoutes';
+import path from 'path';
+const ASSETS_PATH = path.join(process.cwd(), 'src/frontend/assets');
+const UPLOADS_PATH = path.join(process.cwd(), 'uploads');
 
 const server = serve<WSData>({
   routes: {
     // ===== USER ROUTES =====
+    '/uploads/': () => Bun.file(UPLOADS_PATH),
+    '/assets/': () => Bun.file(ASSETS_PATH),
     ...userRoutes,
     '/*': index,
   },
