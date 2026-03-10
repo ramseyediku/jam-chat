@@ -42,7 +42,6 @@ build/
 # dummy database file
 dev.db
 
-bun.lock
 bunfig.toml 
 tsconfig.json
 prettier.config.js

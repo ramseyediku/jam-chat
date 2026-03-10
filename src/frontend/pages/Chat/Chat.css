@@ -2,7 +2,6 @@
 .chat-root {
   min-height: 100vh;
   background: var(--clr-purple-dark-3);
-  color: white;
 }
 
 .chat-container {
@@ -18,6 +17,7 @@
   display: flex;
   flex-direction: column;
   background: var(--clr-light);
+  background-color: #25213b;
   margin: 1rem;
   border-radius: var(--border-radius);
   overflow: hidden;
@@ -35,7 +35,7 @@
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
-  color: black;
+  color: var(--clr-light);
 }
 
 .chat-status {
@@ -74,14 +74,14 @@
     var(--clr-purple-dark-2),
     var(--clr-purple-dark-1)
   );
-  color: white;
+  color: dark;
   border-bottom-right-radius: 8px;
 }
 
 .chat-message.received {
   align-self: flex-start;
   background: linear-gradient(135deg, #ff69b4, #ff1493); /* Pink gradient */
-  color: white;
+  color: dark;
   border-bottom-left-radius: 8px;
 }
 
@@ -111,8 +111,8 @@
   padding: 0.875rem 1.25rem;
   border: 1px solid var(--clr-grey);
   border-radius: 25px;
-  background: white;
-  color: var(--clr-dark);
+  background: #25213b;
+  color: var(--clr-light);
   font-size: 16px;
   outline: none;
   resize: none;
@@ -127,12 +127,9 @@
 .chat-send-btn {
   min-height: 48px;
   width: 80px;
-  background: linear-gradient(
-    135deg,
-    var(--clr-purple-dark-2),
-    var(--clr-purple-dark-1)
-  );
-  color: white;
+
+  color: #fff;
+  background-color: #25213b;
   border: none;
   border-radius: 25px;
   font-weight: 700;
@@ -185,7 +182,7 @@
     var(--clr-purple),
     var(--clr-purple-dark-1)
   ); /* Purple (yours) */
-  color: white;
+  color: dark;
   border-bottom-right-radius: 8px;
   margin-left: auto;
 }
@@ -197,6 +194,6 @@
     #ff416c,
     #ff4b2b
   ); /* Red gradient (theirs) */
-  color: white;
+  color: dark;
   border-bottom-left-radius: 8px;
 }

@@ -110,53 +110,45 @@ export default function Chat() {
   );
 
   return (
-    <>
-      <Header
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        username={username}
-        setUsername={setUsername}
-      />
-      <div className="profile-root">
-        <Sidebar />
-        <div className="chat-container">
-          <div className="chat-main">
-            <div className="chat-header">
-              <h2>{partner.username}</h2>
-            </div>
-
-            <div className="chat-messages">
-              {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`chat-message ${msg.isMe ? 'sent' : 'received'}`} // ← FIXED: Use isMe
-                >
-                  <span>{msg.message}</span>
-                  <small>{new Date(msg.timestamp).toLocaleTimeString()}</small>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-
-            <form onSubmit={sendMessage} className="chat-input-container">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Type a message..."
-                className="chat-input"
-                maxLength={1000}
-              />
-              <button
-                type="submit"
-                disabled={!input.trim()}
-                className="chat-send-btn"
-              >
-                Send
-              </button>
-            </form>
+    <div className="home">
+      <Sidebar />
+      <div className="chat-container">
+        <div className="chat-main">
+          <div className="chat-header">
+            <h2>{partner.username}</h2>
           </div>
+
+          <div className="chat-messages">
+            {messages.map((msg, i) => (
+              <div
+                key={i}
+                className={`chat-message ${msg.isMe ? 'sent' : 'received'}`} // ← FIXED: Use isMe
+              >
+                <span>{msg.message}</span>
+                <small>{new Date(msg.timestamp).toLocaleTimeString()}</small>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={sendMessage} className="chat-input-container">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type a message..."
+              className="chat-input"
+              maxLength={1000}
+            />
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              className="chat-send-btn"
+            >
+              Send
+            </button>
+          </form>
         </div>
       </div>
-    </>
+    </div>
   );
 }

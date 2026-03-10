@@ -484,25 +484,25 @@ export const userRoutes = {
     GET: async (req: Request) => {
       try {
         const supabaseUser = await getUserFromAuthHeader(req);
-        const myId = supabaseUser.id; // UUID
+        const myId = supabaseUser.id;
 
         const url = new URL(req.url);
-        const partnerUsername = url.searchParams.get('partnerId'); // Use username
+        const partnerUsername = url.searchParams.get('partnerId');
         if (!partnerUsername)
           return Response.json({ error: 'Missing partnerId' }, { status: 400 });
 
-        // Get partner auth_id by username
-        const { data: partner } = await supabase
+        // Resolve partner (use supabaseAdmin for consistency)
+        const { data: partner, error: partnerError } = await supabaseAdmin
           .from('users')
           .select('auth_id')
-          .eq('username', partnerUsername.toLowerCase())
+          .eq('username', partnerUsername.toLowerCase().trim())
           .single();
 
-        if (!partner)
+        if (partnerError || !partner)
           return Response.json({ error: 'Partner not found' }, { status: 404 });
 
-        // Fetch messages
-        const { data: history, error } = await supabase
+        // Query leverages your indexes
+        const { data: history, error } = await supabaseAdmin
           .from('messages')
           .select('from_id, to_id, message, created_at')
           .or(
@@ -512,9 +512,8 @@ export const userRoutes = {
           .limit(50);
 
         if (error) throw error;
-
         return Response.json(history || []);
-      } catch (err: any) {
+      } catch (err) {
         console.error('Chat history:', err);
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
       }
@@ -525,9 +524,8 @@ export const userRoutes = {
   '/api/chat/send': {
     POST: async (req: Request) => {
       try {
-        // Authenticate
         const supabaseUser = await getUserFromAuthHeader(req);
-        const myId = supabaseUser.id; // UUID
+        const myId = supabaseUser.id;
 
         const { toId: partnerUsername, message } = await req.json();
         if (
@@ -541,8 +539,7 @@ export const userRoutes = {
           );
         }
 
-        // Resolve partner auth_id by username
-        const { data: partner, error: partnerError } = await supabase
+        const { data: partner, error: partnerError } = await supabaseAdmin
           .from('users')
           .select('auth_id')
           .eq('username', partnerUsername.toLowerCase().trim())
@@ -552,12 +549,13 @@ export const userRoutes = {
           return Response.json({ error: 'Partner not found' }, { status: 404 });
         }
 
-        // Insert message
-        const { error: insertError } = await supabase.from('messages').insert({
-          from_id: myId,
-          to_id: partner.auth_id,
-          message: message.trim(),
-        });
+        const { error: insertError } = await supabaseAdmin
+          .from('messages')
+          .insert({
+            from_id: myId,
+            to_id: partner.auth_id,
+            message: message.trim(),
+          });
 
         if (insertError) {
           console.error('Insert error:', insertError);
@@ -568,7 +566,7 @@ export const userRoutes = {
         }
 
         return Response.json({ success: true });
-      } catch (err: any) {
+      } catch (err) {
         console.error('Chat send error:', err);
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
       }
@@ -579,18 +577,16 @@ export const userRoutes = {
   '/api/rooms': {
     POST: async (req: Request) => {
       try {
-        // NEW: Supabase auth
         const supabaseUser = await getUserFromAuthHeader(req);
-        const hostAuthId = supabaseUser.id; // UUID
+        const hostAuthId = supabaseUser.id;
 
-        // Get host details
-        const { data: host } = await supabase
+        const { data: host, error: hostError } = await supabaseAdmin
           .from('users')
-          .select('id, username') // Keep numeric id/username if needed
+          .select('id, username')
           .eq('auth_id', hostAuthId)
           .single();
 
-        if (!host)
+        if (hostError || !host)
           return Response.json({ error: 'Profile not found' }, { status: 404 });
 
         const formData = await req.formData();
@@ -608,18 +604,17 @@ export const userRoutes = {
 
         const roomId = `room_${Date.now().toString(36)}_${crypto.randomUUID().slice(0, 8)}`;
 
-        // INSERT to Supabase audiorooms table
-        const { data: room, error } = await supabase
-          .from('audiorooms') // Create this table first
+        const { data: room, error } = await supabaseAdmin
+          .from('audiorooms')
           .insert({
             id: roomId,
             name,
             description,
             type,
-            host_auth_id: hostAuthId, // UUID reference
-            host_user_id: host.id, // Your numeric id if needed
+            host_auth_id: hostAuthId,
+            host_user_id: host.id,
             host_username: host.username,
-            image_url: '/rooms/placeholder.jpg', // TODO: upload
+            image_url: '/rooms/placeholder.jpg',
             listener_count: 0,
           })
           .select()
@@ -638,14 +633,14 @@ export const userRoutes = {
           name: room.name,
           description: room.description,
           type: room.type,
-          hostId: host.id, // Numeric for client compat
+          hostId: host.id,
           hostAuthId: hostAuthId,
           imageUrl: room.image_url,
           createdAt: room.created_at,
           speakers: [host.id],
           listenerCount: 0,
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error('Room creation:', error);
         return Response.json(
           { error: 'Unauthorized or server error' },

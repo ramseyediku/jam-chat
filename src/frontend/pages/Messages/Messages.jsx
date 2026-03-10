@@ -71,6 +71,26 @@ export default function Messages() {
           <main className="messages__main">
             <div className="messages__empty">
               Select a chat to start messaging.
+              <div
+                style={{
+                  background:
+                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  padding: '1rem 2rem',
+                  borderRadius: '12px',
+                  textAlign: 'center',
+                  margin: '2rem auto',
+                  maxWidth: '400px',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                }}
+              >
+                <h3 style={{ margin: '0 0 0.5rem 0' }}>
+                  🚧 <br></br>Coming Soon
+                </h3>
+                <p style={{ margin: 0, opacity: 0.9 }}>
+                  This feature is under active development!
+                </p>
+              </div>
             </div>
           </main>
         </div>

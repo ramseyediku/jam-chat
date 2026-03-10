@@ -80,17 +80,22 @@ export default function Profile() {
 
           <div className="profile__header__info">
             <h1 className="profile__username">{profile.username || 'Guest'}</h1>
-            <span>ID {profile.uniqueId || 'user'}</span>
+            <span>ID {profile.uniqueid || 'user'}</span>
             <span className="profile__age-gender">
               <span>{profile.age || 'N/A'}</span>
-              <span>{profile.gender || 'N/A'}</span>
+              <span>{profile.gender || 'N/A'}</span>\
             </span>
             <span className="profile__level">
               Level {profile.level || 'N/A'}
             </span>
           </div>
 
-          <button className="profile-btn-primary">Message</button>
+          <button
+            className="profile-btn-primary"
+            onClick={() => navigate(`/chat/${profile.id}`)}
+          >
+            Message
+          </button>
         </div>
 
         {/* Cards - Fans/Following only (no private info) */}
