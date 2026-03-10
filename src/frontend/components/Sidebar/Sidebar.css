@@ -2,7 +2,7 @@
 
 .sidebar {
   width: 17.5%;
-  height: 100vh;
+  min-height: 100vh;
   background-color: var(--clr-purple);
 
   ul {
@@ -47,7 +47,7 @@
 
 /* ===== ICONS (shared) ===== */
 .sidebar__icon {
-  font-size: 1.35em;
+  font-size: 1.55em;
   width: 1.75em;
   text-align: center;
   flex-shrink: 0;

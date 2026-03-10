@@ -27,7 +27,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #071127 0%, #0f1a2e 100%);
   padding: 40px 24px;
 }
 
@@ -130,4 +129,12 @@
   padding: 0 !important; /* No extra padding */
   margin: 0 !important;
   line-height: 1.2 !important;
+}
+
+.create-action {
+  &.live,
+  &.reels {
+    opacity: 0.6 !important;
+    pointer-events: none !important;
+  }
 }

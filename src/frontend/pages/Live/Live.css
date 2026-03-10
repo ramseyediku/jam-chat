@@ -6,7 +6,6 @@
 }
 
 .live__header {
-  background: #111;
   padding: 1em;
 
   h1 {
@@ -23,5 +22,4 @@
 .live__main {
   flex: 1;
   padding: 24px;
-  background: #071127;
 }

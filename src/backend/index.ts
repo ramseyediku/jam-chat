@@ -1,32 +1,31 @@
 interface WSData {
-  userId: number;
+  userId?: number; // Legacy numeric (from users.id)
   username: string;
-  toId?: number; // Chat
-  roomId?: string; // Audio
+  authId?: string; // NEW: Supabase UUID
+  toId?: number; // Chat partner (numeric)
+  roomId?: string; // Audio room
   roomType?: 'chat' | 'audio';
 }
 
 import { serve } from 'bun';
 import index from '../frontend/index.html';
-import { userRoutes } from './userRoutes';
+import { userRoutes, getUserFromAuthHeader } from './userRoutes'; // Import helper
+import { createClient } from '@supabase/supabase-js';
 import path from 'path';
-const ASSETS_PATH = path.join(process.cwd(), 'src/frontend/assets');
-const UPLOADS_PATH = path.join(process.cwd(), 'uploads');
+const supabaseUrl = 'https://kczftjurxdysdzaidlgr.supabase.co';
+const supabaseAnonKey =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjemZ0anVyeGR5c2R6YWlkbGdyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjc3MTA0NSwiZXhwIjoyMDg4MzQ3MDQ1fQ.4RbnufCtaXQ0OB-3-FSLTT55tP98NsKSwe2PqbXqYv8';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const server = serve<WSData>({
   routes: {
-    // ===== USER ROUTES =====
-    '/uploads/': () => Bun.file(UPLOADS_PATH),
-    '/assets/': () => Bun.file(ASSETS_PATH),
     ...userRoutes,
     '/*': index,
   },
 
-  // ===== WEBSOCKETS FOR LIVE CHAT + AUDIO =====
   websocket: {
     open(ws) {
       if (ws.data.roomType === 'audio' && ws.data.roomId) {
-        // Audio: subscribe to specific room + global notifications
         ws.subscribe(`audio${ws.data.roomId}`);
         ws.subscribe('audio-global');
         console.log(
@@ -36,8 +35,7 @@ const server = serve<WSData>({
           ws.data.roomId
         );
       } else if (ws.data.toId) {
-        // Chat: P2P room (existing)
-        const roomId = Math.min(ws.data.userId!, ws.data.toId!);
+        const roomId = Math.min(Number(ws.data.userId), ws.data.toId!);
         ws.subscribe(`chat${roomId}`);
         ws.subscribe('global');
         console.log('✅ Chat WS OPEN:', ws.data.username, 'to', ws.data.toId);
@@ -48,41 +46,30 @@ const server = serve<WSData>({
       try {
         const data =
           typeof message === 'string' ? JSON.parse(message) : message;
-
         if (ws.data.roomType === 'audio' && ws.data.roomId) {
-          // Audio: broadcast typed events to room
           ws.publish(`audio${ws.data.roomId}`, message);
         } else if (ws.data.toId) {
-          // Chat: existing P2P logic
-          const roomId = Math.min(ws.data.userId!, ws.data.toId!);
+          const roomId = Math.min(Number(ws.data.userId), ws.data.toId!);
           ws.publish(`chat${roomId}`, message);
         }
       } catch (e) {
-        // Raw message fallback (chat-compatible)
         if (ws.data.roomType === 'audio' && ws.data.roomId) {
           ws.publish(`audio${ws.data.roomId}`, message);
         } else if (ws.data.toId) {
-          const roomId = Math.min(ws.data.userId!, ws.data.toId!);
+          const roomId = Math.min(Number(ws.data.userId), ws.data.toId!);
           ws.publish(`chat${roomId}`, message);
         }
       }
     },
     close(ws, code, reason) {
       console.log(`${ws.data.username} left (${ws.data.roomType || 'chat'})`);
-      console.log(
-        '❌ WS CLOSE:',
-        ws.data.username,
-        'code:',
-        code,
-        'reason:',
-        reason
-      );
     },
   },
 
-  // ===== CONNECTION UPGRADE FOR WEBSOCKETS =====
   async fetch(req, server) {
     const url = new URL(req.url);
+
+    // ===== CHAT WEBSOCKET =====
     if (
       url.pathname === '/api/chat' &&
       req.method === 'GET' &&
@@ -91,102 +78,66 @@ const server = serve<WSData>({
       const toId = Number(url.searchParams.get('toId'));
       if (isNaN(toId)) return new Response('Bad toId', { status: 400 });
 
-      // JWT (reuse logic - paste your exact token parsing from userRoutes)
-      const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
-      if (!token)
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-
-      let payload;
       try {
-        const { jwtVerify } = await import('jose');
-        const JWTSECRET = new TextEncoder().encode(
-          Bun.env.JWTSECRET || 'your-secret'
-        );
-        payload = await jwtVerify(token, JWTSECRET);
-      } catch {
-        return new Response(JSON.stringify({ error: 'Invalid token' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
+        const supabaseUser = await getUserFromAuthHeader(req);
+        const { data: user } = await supabase
+          .from('users')
+          .select('id, username')
+          .eq('auth_id', supabaseUser.id)
+          .single();
+
+        if (!user) throw new Error('Profile not found');
+
+        const success = server.upgrade(req, {
+          data: {
+            userId: user.id, // Numeric users.id
+            username: user.username,
+            authId: supabaseUser.id, // UUID for future
+            toId,
+          },
         });
+
+        if (!success) return new Response('Upgrade failed', { status: 400 });
+      } catch (err: any) {
+        return Response.json({ error: err.message }, { status: 401 });
       }
-
-      if (!payload?.payload?.sub || !payload.payload.username) {
-        return new Response(JSON.stringify({ error: 'Invalid payload' }), {
-          status: 401,
-        });
-      }
-
-      const success = server.upgrade(req, {
-        data: {
-          userId: Number(payload.payload.sub),
-          username: payload.payload.username,
-          toId,
-        },
-      });
-
-      if (!success) return new Response('Upgrade failed', { status: 400 });
     }
 
-    // index.ts - ADD to async fetch() BEFORE chat WS
+    // ===== AUDIO WEBSOCKET =====
     if (
       url.pathname === '/api/audio' &&
       req.method === 'GET' &&
       req.headers.get('upgrade') === 'websocket'
     ) {
-      console.log('🔄 /api/audio WS upgrade attempt'); // ← ADD
-
       const roomIdParam = url.searchParams.get('roomId');
-      console.log('📍 roomId param:', roomIdParam); // ADD debug
+      if (!roomIdParam) return new Response('Invalid roomId', { status: 400 });
 
-      if (!roomIdParam) {
-        console.log('❌ Invalid roomId:', roomIdParam); // ← ADD
-        return new Response('Invalid roomId', { status: 400 });
-      }
-
-      // JWT auth (reuse chat logic)
-      const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
-      if (!token) {
-        console.log('❌ No token'); // ← ADD
-        return new Response('Unauthorized', { status: 401 });
-      }
-
-      let payload;
       try {
-        const { jwtVerify } = await import('jose');
-        const JWTSECRET = new TextEncoder().encode(
-          Bun.env.JWTSECRET || 'your-secret'
-        );
-        payload = await jwtVerify(token, JWTSECRET);
-      } catch {
-        return new Response(JSON.stringify({ error: 'Invalid token' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
+        const supabaseUser = await getUserFromAuthHeader(req);
+        const { data: user } = await supabase
+          .from('users')
+          .select('id, username')
+          .eq('auth_id', supabaseUser.id)
+          .single();
+
+        if (!user) throw new Error('Profile not found');
+
+        const success = server.upgrade(req, {
+          data: {
+            userId: user.id,
+            username: user.username,
+            authId: supabaseUser.id,
+            roomId: roomIdParam,
+            roomType: 'audio',
+          },
         });
+
+        if (!success) return new Response('Upgrade failed', { status: 400 });
+      } catch (err: any) {
+        return Response.json({ error: err.message }, { status: 401 });
       }
-
-      if (!payload?.payload?.sub || !payload.payload.username) {
-        console.log('❌ Invalid payload structure'); // ← ADD
-        return new Response(JSON.stringify({ error: 'Invalid payload' }), {
-          status: 401,
-        });
-      }
-
-      const success = server.upgrade(req, {
-        data: {
-          userId: Number(payload.payload.sub),
-          username: payload.payload.username,
-          roomId: roomIdParam, // NEW: roomId
-          roomType: 'audio', // Distinguish from chat
-        },
-      });
-
-      if (!success) return new Response('Upgrade failed', { status: 400 });
     }
 
-    // Fall through to routes unchanged
     return undefined;
   },
 

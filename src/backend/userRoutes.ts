@@ -1,18 +1,65 @@
-import { Database } from 'bun:sqlite';
-import { SignJWT, jwtVerify } from 'jose';
+import { createClient } from '@supabase/supabase-js';
 import formidable from 'formidable';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-const db = new Database('dev.db');
 
-// ===== JWT SECRET (add if missing) =====
-const JWT_SECRET = new TextEncoder().encode(
-  Bun.env.JWT_SECRET || 'your-secret'
+// ===== SUPABASE DETAILS =====
+const supabaseUrl = 'https://kczftjurxdysdzaidlgr.supabase.co';
+const supabaseAnonKey = 'sb_secret_UUMpkyO3cOdwiI-FwMVxwA_wGfhg3_8';
+const serviceApiKey =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjemZ0anVyeGR5c2R6YWlkbGdyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjc3MTA0NSwiZXhwIjoyMDg4MzQ3MDQ1fQ.4RbnufCtaXQ0OB-3-FSLTT55tP98NsKSwe2PqbXqYv8';
+
+// Admin client (service_role key - full perms, bypasses RLS)
+export const supabaseAdmin = createClient(
+  supabaseUrl,
+  serviceApiKey // Dashboard > Settings > API > service_role key
 );
 
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Helper: map stored filename → public URL
+const withProfileUrl = (user: any | null) => {
+  if (!user) return user;
+  if (!user.profile_image) return { ...user, profile_image_url: null };
+
+  const { data } = supabase.storage
+    .from('profile-images')
+    .getPublicUrl(user.profile_image); // profile_image is just filename
+
+  return { ...user, profile_image_url: data.publicUrl };
+};
+
+// ===== NEW SUPABASE AUTH HELPER =====
+export const getUserFromAuthHeader = async (req: Request): Promise<any> => {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    throw new Error('No Bearer token');
+  }
+  const token = authHeader.split(' ')[1];
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token);
+  if (error || !user) throw new Error('Invalid token');
+  return user;
+};
+
+const getUserFromCookie = async (req: Request) => {
+  const token = req.headers
+    .get('Cookie')
+    ?.match(/sb-access-token=([^;]+)/)?.[1];
+  if (!token) throw new Error('No access token cookie');
+  return getUserFromAuthHeader(
+    new Request('', {
+      headers: new Headers({ Authorization: `Bearer ${token}` }),
+    })
+  );
+};
+
 export const userRoutes = {
-  // POST /api/register {username, age, gender}
+  // POST /api/register {username, age, gender, bio?, pfp?}
   '/api/register': {
     POST: async (req: Request) => {
       try {
@@ -33,112 +80,154 @@ export const userRoutes = {
           return Response.json({ error: 'Invalid data' }, { status: 400 });
         }
 
-        // Unique checks
-        if (
-          db.prepare('SELECT id FROM users WHERE username = ?').get(username)
-        ) {
+        // Unique username check
+        const { data: existingUser } = await supabaseAdmin
+          .from('users')
+          .select('id')
+          .eq('username', username)
+          .single();
+        if (existingUser) {
           return Response.json({ error: 'Username taken' }, { status: 400 });
         }
 
-        let uniqueId;
+        // 1. Email signup with fallback
+        const uniqueEmail = `${username}@jamchat.demo`;
+        const tempPassword = 'demo123';
+
+        let supabaseUser = null;
+
+        // Try regular signUp first
+        const {
+          data: { user: authUser },
+          error: authError,
+        } = await supabase.auth.signUp({
+          email: uniqueEmail,
+          password: tempPassword,
+          options: {
+            data: { username, age: age.toString(), gender, bio },
+            emailRedirectTo: 'http://localhost:3000',
+          },
+        });
+
+        console.log('signUp:', { authUser: !!authUser, authError });
+
+        if (!authUser) {
+          // Fallback: admin.createUser (instant confirmed)
+          const { data: adminUser, error: adminError } =
+            await supabaseAdmin.auth.admin.createUser({
+              email: uniqueEmail,
+              password: tempPassword,
+              email_confirm: true,
+              user_metadata: { username, age, gender, bio },
+            });
+          console.log('admin.createUser:', {
+            adminUser: !!adminUser,
+            adminError,
+          });
+          supabaseUser = adminUser;
+        } else {
+          supabaseUser = authUser;
+        }
+
+        if (!supabaseUser) {
+          return Response.json({ error: 'Auth failed' }, { status: 500 });
+        }
+
+        // 2. Generate uniqueid
+        let uniqueid: number;
+        let existingId;
         do {
-          uniqueId = crypto.randomInt(10000000, 99999999);
-        } while (
-          db.prepare('SELECT id FROM users WHERE uniqueId = ?').get(uniqueId)
-        );
+          uniqueid = crypto.randomInt(10000000, 99999999);
+          ({ data: existingId } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .eq('uniqueid', uniqueid)
+            .single());
+        } while (existingId);
 
-        // PFP upload (optional - DB defaults if omitted)
-        const pfpFile = data.get('pfp') as File | null;
-        if (pfpFile) {
-          const bytes = await pfpFile.arrayBuffer();
-          const ext = path.extname(pfpFile.name) || '.jpg';
-          const filename = `pfp_${uniqueId}_${Date.now()}${ext}`;
-          const filePath = path.join(
-            process.cwd(),
-            'uploads/profile_images',
-            filename
-          );
-          await Bun.write(filePath, new Uint8Array(bytes));
-
-          // Explicitly set uploaded path
-          const profileImage = `/uploads/profile_images/${filename}`;
-
-          // INSERT with uploaded PFP
-          const insert = db.prepare(`
-          INSERT INTO users (profile_image, uniqueId, username, age, gender, bio, country)
-          VALUES (?, ?, ?, ?, ?, ?, 'United Kingdom')
-        `);
-          const result = insert.run(
-            profileImage,
-            uniqueId,
+        // 3. Insert profile
+        const { data: insertedUser, error: profileError } = await supabaseAdmin
+          .from('users')
+          .insert({
+            auth_id: supabaseUser.id,
+            uniqueid,
             username,
             age,
             gender,
-            bio
-          );
-
-          // Rest unchanged...
-          const user = db
-            .prepare(
-              `
-          SELECT id, profile_image, uniqueId, username, age, gender, bio, country 
-          FROM users WHERE id = ?
-        `
-            )
-            .get(result.lastInsertRowid);
-
-          // JWT + response (unchanged)
-          const token = await new SignJWT({
-            sub: user.id,
-            username: user.username,
+            bio,
+            country: 'United Kingdom',
           })
-            .setProtectedHeader({ alg: 'HS256' })
-            .setExpirationTime('7d')
-            .sign(JWT_SECRET);
+          .select('id, auth_id')
+          .single();
 
-          const headers = new Headers({ 'Content-Type': 'application/json' });
-          headers.append(
-            'Set-Cookie',
-            `token=${token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Strict`
-          );
-          return Response.json({ user }, { status: 201, headers });
-        } else {
-          // No PFP - DB default handles profile_image
-          const insert = db.prepare(`
-          INSERT INTO users (uniqueId, username, age, gender, bio, country)
-          VALUES (?, ?, ?, ?, ?, 'United Kingdom')
-        `);
-          const result = insert.run(uniqueId, username, age, gender, bio);
+        console.log('INSERTED:', insertedUser); // 👈 Must show auth_id!
 
-          // Fetch user (profile_image auto-defaulted)
-          const user = db
-            .prepare(
-              `
-          SELECT id, profile_image, uniqueId, username, age, gender, bio, country 
-          FROM users WHERE id = ?
-        `
-            )
-            .get(result.lastInsertRowid);
-
-          // JWT + response (same)
-          const token = await new SignJWT({
-            sub: user.id,
-            username: user.username,
-          })
-            .setProtectedHeader({ alg: 'HS256' })
-            .setExpirationTime('7d')
-            .sign(JWT_SECRET);
-
-          const headers = new Headers({ 'Content-Type': 'application/json' });
-          headers.append(
-            'Set-Cookie',
-            `token=${token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Strict`
-          );
-          return Response.json({ user }, { status: 201, headers });
+        if (profileError || !insertedUser) {
+          console.error('Profile error:', profileError);
+          return Response.json({ error: 'Profile failed' }, { status: 500 });
         }
+
+        // 4. PFP upload
+        const pfpFile = data.get('pfp') as File | null;
+        let profileFilename = null;
+
+        if (pfpFile) {
+          const bytes = await pfpFile.arrayBuffer();
+          const ext = path.extname(pfpFile.name) || '.jpg';
+          profileFilename = `pfp_${uniqueid}_${Date.now()}${ext}`;
+
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from('profile-images')
+            .upload(profileFilename, bytes, {
+              cacheControl: '3600',
+              upsert: true,
+              contentType: pfpFile.type || 'image/jpeg',
+            });
+
+          if (uploadError) {
+            console.error('PFP error:', uploadError);
+            // Don't fail registration
+          } else {
+            await supabaseAdmin
+              .from('users')
+              .update({ profile_image: profileFilename })
+              .eq('auth_id', supabaseUser.id);
+          }
+        }
+
+        // 5. Fetch profile
+        const { data: dbUser } = await supabaseAdmin
+          .from('users')
+          .select(
+            'id, profile_image, uniqueid, username, age, gender, bio, country'
+          )
+          .eq('auth_id', supabaseUser.id)
+          .single();
+
+        const profile = withProfileUrl(dbUser!);
+
+        // 6. Set stable user-id cookie
+        const headers = new Headers({ 'Content-Type': 'application/json' });
+        headers.append(
+          'Set-Cookie',
+          `auth-id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
+        ); // Expire old
+        headers.append(
+          'Set-Cookie',
+          `user-id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
+        );
+        headers.append(
+          'Set-Cookie',
+          `auth-id=${insertedUser.id}; HttpOnly; Path=/; Max-Age=3600; SameSite=Strict`
+        );
+
+        return Response.json(
+          { user: profile, message: 'Registered!' },
+          { status: 201, headers }
+        );
       } catch (err) {
         console.error('Register error:', err);
-        return Response.json({ error: 'Registration failed' }, { status: 500 });
+        return Response.json({ error: 'Server error' }, { status: 500 });
       }
     },
   },
@@ -148,134 +237,161 @@ export const userRoutes = {
     POST: async (req: Request) => {
       try {
         const { username } = await req.json();
-        const user = db
-          .prepare('SELECT * FROM users WHERE username = ?')
-          .get(username.toLowerCase());
 
-        if (!user) {
+        // 1. Find user by username
+        const { data: user, error: findError } = await supabase
+          .from('users')
+          .select(
+            'auth_id, id, profile_image, uniqueid, username, age, gender, bio, country, level, following, fans'
+          )
+          .eq('username', username.toLowerCase())
+          .single();
+
+        if (findError || !user) {
           return Response.json(
-            {
-              error: 'User not found. Try again or make new account.',
-            },
+            { error: 'User not found. Try again or make new account.' },
             { status: 404 }
           );
         }
 
-        // JWT (good)
-        const token = await new SignJWT({
-          sub: user.id,
-          username: user.username,
-        })
-          .setProtectedHeader({ alg: 'HS256' })
-          .setExpirationTime('7d')
-          .sign(JWT_SECRET);
+        // 2. Refresh/restore session using their auth_id (Supabase handles anonymous refresh)
+        const { data: session, error: sessionError } = await supabase.auth
+          .refreshSession({ refresh_token: '' }) // For anonymous, often just getUser works
+          .catch(async () => {
+            // Fallback: re-signin anonymously (safe for passwordless)
+            return supabase.auth.signInAnonymously();
+          });
 
+        if (sessionError || !session) {
+          console.error('Session error:', sessionError);
+          return Response.json({ error: 'Login failed' }, { status: 500 });
+        }
+
+        // Verify session matches user (optional safety)
+        if (session.user?.id !== user.auth_id) {
+          console.error('Auth mismatch');
+          return Response.json({ error: 'Session mismatch' }, { status: 401 });
+        }
+
+        // 3. Set cookie
         const headers = new Headers({ 'Content-Type': 'application/json' });
         headers.append(
           'Set-Cookie',
-          `token=${token}; HttpOnly; Path=/; Max-Age=604800; SameSite=Strict`
+          `sb-access-token=${session.access_token}; HttpOnly; Path=/; Max-Age=3600; SameSite=Strict; Secure`
         );
 
-        // ❌ FIX 1: profile_image → prof_pic (your schema)
-        // ❌ FIX 2: Return full user (matches register)
-        const profile = db
-          .prepare(
-            `
-          SELECT id, profile_image, uniqueId, username, age, gender, bio, country, level, following, fans 
-          FROM users WHERE id = ?
-        `
-          )
-          .get(user.id);
+        const profile = withProfileUrl(user);
 
-        return Response.json(
-          { user: profile },
-          {
-            status: 200,
-            headers,
-          }
-        );
+        return Response.json({ user: profile }, { status: 200, headers });
       } catch (err) {
-        console.error('Login error:', err); // ✅ Log error
+        console.error('Login error:', err);
         return Response.json({ error: 'Login failed' }, { status: 500 });
-      }
-    },
-  },
-
-  // GET /api/profile (JWT protected)
-  '/api/profile': {
-    GET: async (req: Request) => {
-      try {
-        const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
-        if (!token) {
-          return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        const { payload } = await jwtVerify(token, JWT_SECRET);
-        const user = db
-          .prepare(
-            `
-          SELECT id, profile_image, uniqueId, username, age, gender, bio, country, level, following, fans 
-          FROM users WHERE id = ?
-        `
-          )
-          .get(payload.sub);
-
-        if (!user) {
-          return Response.json({ error: 'User not found' }, { status: 404 });
-        }
-
-        return Response.json({ user }); // ✅ Wrap in { user }
-      } catch {
-        return Response.json({ error: 'Invalid token' }, { status: 401 });
       }
     },
   },
 
   // POST /api/logout
   '/api/logout': {
-    POST: () => {
-      const headers = new Headers({
-        'Set-Cookie': 'token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict',
-        'Content-Type': 'application/json',
-      });
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers,
-      });
-    },
-  },
-
-  '/api/myprofile': {
-    GET: async (req: Request) => {
+    POST: async (req: Request) => {
       try {
-        const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
-        if (!token) {
-          return Response.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        // Optional: Verify user before clearing (good practice)
+        await getUserFromAuthHeader(req).catch(() => {}); // Silent fail OK
 
-        const { payload } = await jwtVerify(token, JWT_SECRET);
-        const user = db
-          .prepare(
-            `
-          SELECT id, profile_image, uniqueId, username, age, gender, bio, country, 
-                 rcoins, diamonds, level, following, fans, isBlocked, isHost, agency
-          FROM users WHERE id = ?
-        `
-          )
-          .get(payload.sub);
+        // Clear HttpOnly cookie
+        const headers = new Headers({
+          'Set-Cookie':
+            'sb-access-token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict; Secure',
+          'Content-Type': 'application/json',
+        });
 
-        if (!user) {
-          return Response.json({ error: 'User not found' }, { status: 404 });
-        }
-
-        return Response.json({ user });
+        return Response.json(
+          { success: true },
+          {
+            status: 200,
+            headers,
+          }
+        );
       } catch {
-        return Response.json({ error: 'Invalid token' }, { status: 401 });
+        // Even if invalid token, clear cookie anyway
+        const headers = new Headers({
+          'Set-Cookie':
+            'sb-access-token=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict; Secure',
+          'Content-Type': 'application/json',
+        });
+        return Response.json({ success: true }, { status: 200, headers });
       }
     },
   },
 
-  // 1. SEARCH API - Dropdown preview (lightweight)
+  // GET /api/profile (protected - uses new auth helper)
+  '/api/profile': {
+    GET: async (req: Request) => {
+      try {
+        const supabaseUser = await getUserFromAuthHeader(req);
+
+        // Fetch custom profile by auth_id (UUID)
+        const { data: user, error } = await supabase
+          .from('users')
+          .select(
+            'id, profile_image, uniqueid, username, age, gender, bio, country, rcoins, diamonds, level, following, fans, isBlocked, isHost, agency'
+          )
+          .eq('auth_id', supabaseUser.id)
+          .single();
+
+        if (error || !user) {
+          return Response.json({ error: 'User not found' }, { status: 404 });
+        }
+
+        return Response.json({ user: withProfileUrl(user) });
+      } catch (err: any) {
+        console.error('Profile error:', err);
+        return Response.json({ error: err.message }, { status: 401 });
+      }
+    },
+  },
+
+  // GET /api/myprofile (fetches all details of currently logged in user)
+  '/api/myprofile': {
+    GET: async (req: Request) => {
+      try {
+        // NEW: Cookie‑based auth (matches register)
+
+        const userIdCookie = parseInt(
+          req.headers.get('cookie')?.match(/auth-id=([^;]+)/)?.[1]
+        );
+
+        if (!userIdCookie) {
+          return Response.json({ error: 'No session' }, { status: 401 });
+        }
+
+        // Fetch profile by user.id (stable!)
+        const { data: user, error } = await supabaseAdmin // Admin bypasses RLS
+          .from('users')
+          .select(
+            'id, profile_image, uniqueid, username, age, gender, bio, country, rcoins, diamonds, level, following, fans, isblocked, ishost, agency'
+          )
+          .eq('id', userIdCookie) // ← By id, not auth_id!
+          .single();
+
+        console.log('User ID from cookie:', userIdCookie);
+        console.log('Profile:', user);
+
+        if (error || !user) {
+          console.error('Profile error:', error);
+          return Response.json({ error: 'Profile not found' }, { status: 404 });
+        }
+
+        const profile = withProfileUrl(user);
+        console.log(profile);
+        return Response.json({ user: withProfileUrl(user) });
+      } catch (err: any) {
+        console.error('Myprofile error:', err.message);
+        return Response.json({ error: 'Server error' }, { status: 500 });
+      }
+    },
+  },
+
+  // 1. SEARCH API - Dropdown preview
   '/api/search': {
     GET: async (req: Request) => {
       try {
@@ -288,23 +404,20 @@ export const userRoutes = {
           });
         }
 
-        const users = db
-          .prepare(
-            `
-          SELECT 
-            id, 
-            profile_image,  -- Updated from prof_pic
-            username,
-            fans  -- Using fans for sorting (matches old 'ORDER BY fans DESC')
-          FROM users 
-          WHERE LOWER(username) LIKE ?
-          ORDER BY fans DESC
-          LIMIT 8
-        `
-          )
-          .all(`%${query}%`);
+        const { data: users, error } = await supabase
+          .from('users')
+          .select('id, profile_image, username, fans')
+          .ilike('username', `%${query}%`)
+          .order('fans', { ascending: false })
+          .limit(8);
 
-        return Response.json(users, {
+        if (error || !users) {
+          return Response.json([], { status: 500 });
+        }
+
+        const usersWithUrls = users.map(withProfileUrl);
+
+        return Response.json(usersWithUrls, {
           headers: { 'Cache-Control': 'public, max-age=5' },
         });
       } catch (err) {
@@ -314,7 +427,7 @@ export const userRoutes = {
     },
   },
 
-  // 2. USER DETAIL API - Profile page (full data, unchanged)
+  // 2. USER DETAIL API - Profile page
   '/api/user': {
     GET: async (req: Request) => {
       try {
@@ -325,43 +438,25 @@ export const userRoutes = {
         let user = null;
 
         if (idParam) {
-          user = db
-            .prepare(
-              `
-            SELECT 
-              id, 
-              profile_image,  -- Updated from prof_pic
-              username, 
-              age, 
-              gender, 
-              level, 
-              following, 
-              fans, 
-              bio
-            FROM users 
-            WHERE id = ?
-          `
+          const { data, error } = await supabase
+            .from('users')
+            .select(
+              'id, profile_image, username, age, gender, level, following, fans, bio'
             )
-            .get(Number(idParam));
+            .eq('id', Number(idParam))
+            .single();
+          if (error) throw error;
+          user = data;
         } else if (usernameParam) {
-          user = db
-            .prepare(
-              `
-            SELECT 
-              id, 
-              profile_image,  -- Updated from prof_pic
-              username, 
-              age, 
-              gender, 
-              level, 
-              following, 
-              fans, 
-              bio
-            FROM users 
-            WHERE LOWER(username) = ?
-          `
+          const { data, error } = await supabase
+            .from('users')
+            .select(
+              'id, profile_image, username, age, gender, level, following, fans, bio'
             )
-            .get(usernameParam);
+            .eq('username', usernameParam)
+            .single();
+          if (error) throw error;
+          user = data;
         } else {
           return Response.json(
             { error: 'Missing id or username' },
@@ -373,7 +468,7 @@ export const userRoutes = {
           return Response.json({ error: 'User not found' }, { status: 404 });
         }
 
-        return Response.json(user);
+        return Response.json(withProfileUrl(user));
       } catch (err) {
         console.error('User fetch error:', err);
         return Response.json(
@@ -384,79 +479,125 @@ export const userRoutes = {
     },
   },
 
-  // ===== CHAT HISTORY (add to userRoutes) =====
+  // GET /api/chat/history?partnerId=uuid (Supabase)
   '/api/chat/history': {
     GET: async (req: Request) => {
       try {
-        const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
-        if (!token) return new Response('Unauthorized', { status: 401 });
+        const supabaseUser = await getUserFromAuthHeader(req);
+        const myId = supabaseUser.id; // UUID
 
-        const { payload } = await jwtVerify(token, JWT_SECRET);
-        const myId = payload.sub;
         const url = new URL(req.url);
-        const partnerId = Number(url.searchParams.get('partnerId'));
+        const partnerUsername = url.searchParams.get('partnerId'); // Use username
+        if (!partnerUsername)
+          return Response.json({ error: 'Missing partnerId' }, { status: 400 });
 
-        const history = db
-          .prepare(
-            `
-        SELECT from_id, to_id, message, created_at
-        FROM messages
-        WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?)
-        ORDER BY created_at ASC
-        LIMIT 50
-      `
+        // Get partner auth_id by username
+        const { data: partner } = await supabase
+          .from('users')
+          .select('auth_id')
+          .eq('username', partnerUsername.toLowerCase())
+          .single();
+
+        if (!partner)
+          return Response.json({ error: 'Partner not found' }, { status: 404 });
+
+        // Fetch messages
+        const { data: history, error } = await supabase
+          .from('messages')
+          .select('from_id, to_id, message, created_at')
+          .or(
+            `and(from_id.eq.${myId},to_id.eq.${partner.auth_id}),and(from_id.eq.${partner.auth_id},to_id.eq.${myId})`
           )
-          .all(myId, partnerId, partnerId, myId);
+          .order('created_at', { ascending: true })
+          .limit(50);
 
-        return Response.json(history);
-      } catch {
+        if (error) throw error;
+
+        return Response.json(history || []);
+      } catch (err: any) {
+        console.error('Chat history:', err);
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
       }
     },
   },
 
+  // POST /api/chat/send { toId: 'username', message: 'hello' } (Supabase + new auth)
   '/api/chat/send': {
     POST: async (req: Request) => {
       try {
-        const { toId, message } = await req.json();
-        const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
-        if (!token)
-          return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        // Authenticate
+        const supabaseUser = await getUserFromAuthHeader(req);
+        const myId = supabaseUser.id; // UUID
 
-        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const { toId: partnerUsername, message } = await req.json();
+        if (
+          !partnerUsername ||
+          typeof message !== 'string' ||
+          message.trim().length === 0
+        ) {
+          return Response.json(
+            { error: 'Missing partner username or empty message' },
+            { status: 400 }
+          );
+        }
 
-        // SAVE TO DB
-        db.prepare(
-          `
-        INSERT INTO messages (from_id, to_id, message)
-        VALUES (?, ?, ?)
-      `
-        ).run(payload.sub, toId, message);
+        // Resolve partner auth_id by username
+        const { data: partner, error: partnerError } = await supabase
+          .from('users')
+          .select('auth_id')
+          .eq('username', partnerUsername.toLowerCase().trim())
+          .single();
+
+        if (partnerError || !partner) {
+          return Response.json({ error: 'Partner not found' }, { status: 404 });
+        }
+
+        // Insert message
+        const { error: insertError } = await supabase.from('messages').insert({
+          from_id: myId,
+          to_id: partner.auth_id,
+          message: message.trim(),
+        });
+
+        if (insertError) {
+          console.error('Insert error:', insertError);
+          return Response.json(
+            { error: 'Failed to send message' },
+            { status: 500 }
+          );
+        }
 
         return Response.json({ success: true });
-      } catch {
-        return Response.json({ error: 'Failed' }, { status: 500 });
+      } catch (err: any) {
+        console.error('Chat send error:', err);
+        return Response.json({ error: 'Unauthorized' }, { status: 401 });
       }
     },
   },
 
-  // === POST /api/rooms ===
-  // userRoutes.ts - Rooms with your existing DB (NO table creation)
+  // POST /api/rooms (create room - protected)
   '/api/rooms': {
     POST: async (req: Request) => {
       try {
-        // JWT → hostId
-        const token = req.headers.get('Cookie')?.match(/token=([^;]+)/)?.[1];
-        if (!token)
-          return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        // NEW: Supabase auth
+        const supabaseUser = await getUserFromAuthHeader(req);
+        const hostAuthId = supabaseUser.id; // UUID
 
-        const verified = await jwtVerify(token, JWT_SECRET);
-        const hostId = Number(verified.payload.sub);
+        // Get host details
+        const { data: host } = await supabase
+          .from('users')
+          .select('id, username') // Keep numeric id/username if needed
+          .eq('auth_id', hostAuthId)
+          .single();
 
-        const data = await req.formData();
-        const name = data.get('name') as string;
-        const description = (data.get('description') as string) || '';
-        const type = (data.get('type') as string) || 'public';
+        if (!host)
+          return Response.json({ error: 'Profile not found' }, { status: 404 });
+
+        const formData = await req.formData();
+        const name = (formData.get('name') as string)?.trim();
+        const description =
+          (formData.get('description') as string)?.trim() || '';
+        const type = (formData.get('type') as string) || 'public';
 
         if (!name || name.length < 3) {
           return Response.json(
@@ -465,69 +606,241 @@ export const userRoutes = {
           );
         }
 
-        const roomId = Date.now().toString(36);
+        const roomId = `room_${Date.now().toString(36)}_${crypto.randomUUID().slice(0, 8)}`;
 
-        // INSERT (your existing rooms table)
-        db.prepare(
-          `
-        INSERT INTO audiorooms (id, name, description, type, hostId, imageUrl)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `
-        ).run(
-          roomId,
-          name,
-          description,
-          type,
-          hostId,
-          '/rooms/placeholder.jpg' // TODO: upload
-        );
+        // INSERT to Supabase audiorooms table
+        const { data: room, error } = await supabase
+          .from('audiorooms') // Create this table first
+          .insert({
+            id: roomId,
+            name,
+            description,
+            type,
+            host_auth_id: hostAuthId, // UUID reference
+            host_user_id: host.id, // Your numeric id if needed
+            host_username: host.username,
+            image_url: '/rooms/placeholder.jpg', // TODO: upload
+            listener_count: 0,
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Room insert:', error);
+          return Response.json(
+            { error: 'Failed to create room' },
+            { status: 500 }
+          );
+        }
 
         return Response.json({
-          id: roomId,
-          name,
-          description,
-          type,
-          hostId,
-          imageUrl: '/rooms/placeholder.jpg',
-          createdAt: new Date().toISOString(),
-          speakers: [hostId],
+          id: room.id,
+          name: room.name,
+          description: room.description,
+          type: room.type,
+          hostId: host.id, // Numeric for client compat
+          hostAuthId: hostAuthId,
+          imageUrl: room.image_url,
+          createdAt: room.created_at,
+          speakers: [host.id],
           listenerCount: 0,
         });
-      } catch (error) {
+      } catch (error: any) {
         console.error('Room creation:', error);
         return Response.json(
-          { error: 'Failed to create room' },
-          { status: 500 }
+          { error: 'Unauthorized or server error' },
+          { status: 401 }
         );
       }
     },
   },
 
+  // GET/DELETE /api/rooms/:id (Supabase)
   '/api/rooms/:id': {
     GET: async (req: Request) => {
       try {
         const url = new URL(req.url);
-        const roomId = url.pathname.split('/').pop();
+        const roomId = decodeURIComponent(url.pathname.split('/').pop() || '');
 
-        const room = db
-          .prepare('SELECT * FROM audiorooms WHERE id = ?')
-          .get(roomId);
-        if (!room) {
+        const { data: room, error } = await supabase
+          .from('audiorooms')
+          .select('*')
+          .eq('id', roomId)
+          .single();
+
+        if (error || !room) {
           return Response.json({ error: 'Room not found' }, { status: 404 });
         }
 
-        return Response.json(room);
+        return Response.json(room, {
+          headers: { 'Cache-Control': 'public, max-age=10' },
+        });
       } catch (error) {
+        console.error('Get room error:', error);
         return Response.json({ error: 'Server error' }, { status: 500 });
       }
     },
 
-    DELETE: async (req) => {
-      const url = new URL(req.url);
-      const roomId = url.pathname.split('/').pop();
+    DELETE: async (req: Request) => {
+      try {
+        const supabaseUser = await getUserFromAuthHeader(req);
+        const url = new URL(req.url);
+        const roomId = decodeURIComponent(url.pathname.split('/').pop() || '');
 
-      db.prepare('DELETE FROM audiorooms WHERE id = ?').run(roomId);
-      return Response.json({ success: true });
+        // Verify ownership
+        const { data: room } = await supabase
+          .from('audiorooms')
+          .select('host_auth_id')
+          .eq('id', roomId)
+          .single();
+
+        if (!room || room.host_auth_id !== supabaseUser.id) {
+          return Response.json(
+            { error: 'Not authorized to delete' },
+            { status: 403 }
+          );
+        }
+
+        const { error } = await supabase
+          .from('audiorooms')
+          .delete()
+          .eq('id', roomId);
+
+        if (error) {
+          console.error('Delete error:', error);
+          return Response.json({ error: 'Failed to delete' }, { status: 500 });
+        }
+
+        return Response.json({ success: true });
+      } catch (err: any) {
+        console.error('Delete room:', err);
+        return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    },
+  },
+
+  '/api/posts': {
+    POST: async (req: Request) => {
+      try {
+        // Get user from cookie
+
+        const userIdCookie = parseInt(
+          req.headers.get('cookie')?.match(/auth-id=([^;]+)/)?.[1]
+        );
+
+        if (isNaN(userIdCookie)) {
+          return Response.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const formData = await req.formData();
+        const imageFile = formData.get('image') as File;
+        const caption = (formData.get('caption') as string)?.trim() || '';
+        const locationcountry = 'United Kingdom';
+        const visibility = 'public';
+        if (!imageFile || !caption || caption.length < 1) {
+          return Response.json(
+            { error: 'Missing image or caption' },
+            { status: 400 }
+          );
+        }
+
+        // 1. Upload image
+        const bytes = await imageFile.arrayBuffer();
+        const ext = imageFile.name.split('.').pop() || 'jpg';
+        const filename = `post_${userIdCookie}_${Date.now()}.${ext}`;
+
+        const { data: uploadData, error: uploadError } =
+          await supabaseAdmin.storage
+            .from('post-images') // New bucket or reuse profile-images
+            .upload(filename, bytes, {
+              contentType: imageFile.type || 'image/jpeg',
+              cacheControl: '3600',
+              upsert: false,
+            });
+
+        if (uploadError || !uploadData) {
+          console.error('Upload failed:', uploadError);
+          return Response.json(
+            { error: 'Image upload failed' },
+            { status: 500 }
+          );
+        }
+
+        const imageUrl = `${supabaseUrl}/storage/v1/object/public/post-images/${filename}`;
+
+        // 2. Insert post
+        const { data: post, error: postError } = await supabaseAdmin
+          .from('posts')
+          .insert({
+            user_id: userIdCookie,
+            image_url: imageUrl,
+            caption,
+            locationcountry,
+            visibility,
+          })
+          .select('id, user_id, image_url, caption, created_at')
+          .single();
+
+        if (postError) {
+          console.error('Post insert failed:', postError);
+          return Response.json(
+            { error: 'Post creation failed' },
+            { status: 500 }
+          );
+        }
+
+        return Response.json(
+          {
+            post,
+            message: 'Post created!',
+          },
+          { status: 201 }
+        );
+      } catch (err) {
+        console.error('Posts error:', err);
+        return Response.json({ error: 'Server error' }, { status: 500 });
+      }
+    },
+
+    GET: async (req: Request) => {
+      try {
+        const { data: posts, error } = await supabaseAdmin
+          .from('posts')
+          .select(
+            `
+        id,
+        user_id,
+        image_url,
+        caption,
+        locationcountry,
+        visibility,
+        created_at,
+        users!posts_user_id_fkey(username,profile_image)
+      `
+          )
+          .eq('visibility', 'public')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Posts fetch error:', error);
+          return Response.json(
+            { error: 'Failed to fetch posts' },
+            { status: 500 }
+          );
+        }
+
+        // 👈 Apply your helper to each post's user
+        const postsWithProfile =
+          posts?.map((post) => ({
+            ...post,
+            users: withProfileUrl(post.users),
+          })) || [];
+
+        return Response.json({ posts: postsWithProfile });
+      } catch (err) {
+        console.error('GET posts error:', err);
+        return Response.json({ error: 'Server error' }, { status: 500 });
+      }
     },
   },
 };

@@ -62,45 +62,40 @@ export default function MyProfile() {
     );
 
   return (
-    <div className="profile-root">
+    <div
+      style={{
+        display: 'flex',
+      }}
+    >
       <Sidebar />
-      <div className="profile-main">
+      <div className="profile">
         {/* Profile Header - Uses API fields */}
-        <div className="profile-header">
+        <div className="profile__header">
           <img
-            src={profile.profile_image}
+            src={profile.profile_image_url}
             alt={profile.username}
-            className="profile-avatar"
+            className="profile__avatar"
           />
-          <div className="profile-info">
-            <h1 className="profile-username">
-              {profile.username || 'Guest'}
-              <span className="username-badge">
-                {profile.uniqueId || 'user'}
-              </span>
-            </h1>
-            <div className="profile-meta">
+
+          <div className="profile__header__info">
+            <h1 className="profile__username">{profile.username || 'Guest'}</h1>
+            <span>ID {profile.uniqueId || 'user'}</span>
+            <span className="profile__age-gender">
               <span>{profile.age || 'N/A'}</span>
-              <span>•</span>
               <span>{profile.gender || 'N/A'}</span>
-            </div>
-            <div className="profile-stats">
-              <span>Level {profile.level || 1}</span>
-              <span>•</span>
-              <span>{profile.following || 0} following</span>
-              <span>•</span>
-              <span>{profile.fans || 0} fans</span>
-            </div>
+            </span>
+            <span className="profile__level">
+              Level {profile.level || 'N/A'}
+            </span>
           </div>
-          <div className="profile-actions">
-            <button className="profile-btn-primary">Edit Profile</button>
-          </div>
+
+          <button className="profile-btn-primary">Edit Profile</button>
         </div>
 
         {/* Cards Section - Uses API data */}
-        <div className="profile-cards">
+        <div className="profile__cards">
           {/* Diamonds/Wallet */}
-          <div className="profile-card diamonds">
+          <div className="profile__card profile__card--diamonds">
             <img src={iconDiamond} alt="diamond icon" />
             <div className="card-main">
               <span className="card-value">
@@ -112,7 +107,7 @@ export default function MyProfile() {
           </div>
 
           {/* Host & Privilege - Uses isHost */}
-          <div className="profile-card host">
+          <div className="profile__card profile__card--follow">
             <div className="card-title">Host & Privilege</div>
             <div className="card-buttons">
               {profile.isHost ? (

@@ -33,7 +33,7 @@ export default function SearchBar({ searchQuery, setSearchQuery }) {
       <input
         type="text"
         className="input search-input"
-        placeholder="Search"
+        placeholder="Search user"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
       />
@@ -49,7 +49,7 @@ export default function SearchBar({ searchQuery, setSearchQuery }) {
               tabIndex={0}
             >
               <img
-                src={user.prof_pic}
+                src={user.profile_image_url}
                 alt={user.username}
                 className="search-result-avatar"
               />

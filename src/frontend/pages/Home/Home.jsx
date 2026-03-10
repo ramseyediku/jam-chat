@@ -23,12 +23,12 @@ export default function Home() {
       if (res.ok) {
         const { user } = await res.json();
         setUsername(user.username || 'Guest');
-        if (user.profile_image == '') {
+        if (user.profile_image_url == '') {
           setProfileImage(defaultpfp);
         } else {
-          setProfileImage(user.profile_image);
+          setProfileImage(user.profile_image_url);
         }
-        console.log(user.profile_image);
+        console.log(user.profile_image_url);
       } else {
         setUsername('Guest');
         console.error('Bad response from my profile');
