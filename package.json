@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@railway/cli": "^4.31.0",
     "@socket.io/bun-engine": "^0.1.0",
     "@supabase/supabase-js": "^2.98.0",
     "@types/formidable": "^3.4.7",
