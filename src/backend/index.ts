@@ -9,8 +9,9 @@ interface WSData {
 
 const renderUrl = Bun.env.RENDER_URL;
 
+const allowedOrigins = ['http://localhost:3000', `${renderUrl}`];
 const corsHeaders = {
-  'Access-Control-Allow-Origin': `${renderUrl}`,
+  'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : '',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
