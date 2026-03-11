@@ -1,8 +1,32 @@
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 import crypto from 'crypto';
-import { withCors } from '.';
 const renderUrl = Bun.env.RENDER_URL;
+
+const allowedOrigins = ['http://localhost:3000', `${renderUrl}`];
+const corsHeaders = {
+  'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : '',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// wrapper function to add cors to each endpoint
+const withCors = (handler: (req: Request) => Response | Promise<Response>) => {
+  return async (req: Request) => {
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+    const response = await handler(req);
+    const newHeaders = new Headers(response.headers);
+    Object.entries(corsHeaders).forEach(([k, v]) =>
+      newHeaders.set(k, v as string)
+    );
+    return new Response(response.body, {
+      status: response.status,
+      headers: newHeaders,
+    });
+  };
+};
 
 // ===== SUPABASE DETAILS =====
 const supabaseUrl = Bun.env.SUPABASE_URL;
