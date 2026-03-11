@@ -6,6 +6,15 @@
     "dev": "bun --watch index.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@supabase/supabase-js": "^2.98.0",
+    "@types/formidable": "^3.4.7",
+    "crypto": "^1.0.1",
+    "formidable": "^3.5.4",
+    "ip2country": "^1.1.0",
+    "react": "^19",
+    "react-dom": "^19",
+    "react-router-dom": "^7.13.0",
+    "supabase": "^2.76.17"
   }
 }
