@@ -1,0 +1,11 @@
+{
+  "name": "backend",
+  "module": "index.ts",
+  "scripts": {
+    "start": "bun index.ts",
+    "dev": "bun --watch index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
