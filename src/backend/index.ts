@@ -7,14 +7,40 @@ interface WSData {
   roomType?: 'chat' | 'audio';
 }
 
+const renderUrl = Bun.env.RENDER_URL;
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': `${renderUrl}`,
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+// wrapper function to add cors to each endpoint
+export const withCors = (
+  handler: (req: Request) => Response | Promise<Response>
+) => {
+  return async (req: Request) => {
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+    const response = await handler(req);
+    const newHeaders = new Headers(response.headers);
+    Object.entries(corsHeaders).forEach(([k, v]) =>
+      newHeaders.set(k, v as string)
+    );
+    return new Response(response.body, {
+      status: response.status,
+      headers: newHeaders,
+    });
+  };
+};
+
 import { serve } from 'bun';
 import index from '../frontend/index.html';
 import { userRoutes, getUserFromAuthHeader } from './userRoutes'; // Import helper
 import { createClient } from '@supabase/supabase-js';
-import path from 'path';
-const supabaseUrl = 'https://kczftjurxdysdzaidlgr.supabase.co';
-const supabaseAnonKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjemZ0anVyeGR5c2R6YWlkbGdyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjc3MTA0NSwiZXhwIjoyMDg4MzQ3MDQ1fQ.4RbnufCtaXQ0OB-3-FSLTT55tP98NsKSwe2PqbXqYv8';
+const supabaseUrl = Bun.env.SUPABASE_URL;
+const supabaseAnonKey = Bun.env.SUPABASE_URL;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const server = serve<WSData>({

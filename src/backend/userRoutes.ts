@@ -1,21 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
-import formidable from 'formidable';
-import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { withCors } from '.';
+const renderUrl = Bun.env.RENDER_URL;
 
 // ===== SUPABASE DETAILS =====
-const supabaseUrl = 'https://kczftjurxdysdzaidlgr.supabase.co';
-const supabaseAnonKey = 'sb_secret_UUMpkyO3cOdwiI-FwMVxwA_wGfhg3_8';
-const serviceApiKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtjemZ0anVyeGR5c2R6YWlkbGdyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjc3MTA0NSwiZXhwIjoyMDg4MzQ3MDQ1fQ.4RbnufCtaXQ0OB-3-FSLTT55tP98NsKSwe2PqbXqYv8';
+const supabaseUrl = Bun.env.SUPABASE_URL;
+const supabaseAnonKey = Bun.env.SUPABASE_URL;
+const serviceApiKey = Bun.env.SERVICE_API_KEY;
 
 // Admin client (service_role key - full perms, bypasses RLS)
-export const supabaseAdmin = createClient(
-  supabaseUrl,
-  serviceApiKey // Dashboard > Settings > API > service_role key
-);
-
+export const supabaseAdmin = createClient(supabaseUrl, serviceApiKey);
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Helper: map stored filename → public URL
@@ -61,7 +56,7 @@ const getUserFromCookie = async (req: Request) => {
 export const userRoutes = {
   // POST /api/register {username, age, gender, bio?, pfp?}
   '/api/register': {
-    POST: async (req: Request) => {
+    POST: withCors(async (req: Request) => {
       try {
         const data = await req.formData();
         const username = (data.get('username') as string)?.trim().toLowerCase();
@@ -229,12 +224,12 @@ export const userRoutes = {
         console.error('Register error:', err);
         return Response.json({ error: 'Server error' }, { status: 500 });
       }
-    },
+    }),
   },
 
   // POST /api/login {username}
   '/api/login': {
-    POST: async (req: Request) => {
+    POST: withCors(async (req: Request) => {
       try {
         const { username } = await req.json();
 
@@ -287,12 +282,12 @@ export const userRoutes = {
         console.error('Login error:', err);
         return Response.json({ error: 'Login failed' }, { status: 500 });
       }
-    },
+    }),
   },
 
   // POST /api/logout
   '/api/logout': {
-    POST: async (req: Request) => {
+    POST: withCors(async (req: Request) => {
       try {
         // Optional: Verify user before clearing (good practice)
         await getUserFromAuthHeader(req).catch(() => {}); // Silent fail OK
@@ -320,12 +315,12 @@ export const userRoutes = {
         });
         return Response.json({ success: true }, { status: 200, headers });
       }
-    },
+    }),
   },
 
   // GET /api/profile (protected - uses new auth helper)
   '/api/profile': {
-    GET: async (req: Request) => {
+    GET: withCors(async (req: Request) => {
       try {
         const supabaseUser = await getUserFromAuthHeader(req);
 
@@ -347,12 +342,12 @@ export const userRoutes = {
         console.error('Profile error:', err);
         return Response.json({ error: err.message }, { status: 401 });
       }
-    },
+    }),
   },
 
   // GET /api/myprofile (fetches all details of currently logged in user)
   '/api/myprofile': {
-    GET: async (req: Request) => {
+    GET: withCors(async (req: Request) => {
       try {
         // NEW: Cookie‑based auth (matches register)
 
@@ -388,12 +383,12 @@ export const userRoutes = {
         console.error('Myprofile error:', err.message);
         return Response.json({ error: 'Server error' }, { status: 500 });
       }
-    },
+    }),
   },
 
   // 1. SEARCH API - Dropdown preview
   '/api/search': {
-    GET: async (req: Request) => {
+    GET: withCors(async (req: Request) => {
       try {
         const url = new URL(req.url, `http://${req.headers.get('host')}`);
         const query = url.searchParams.get('query')?.trim().toLowerCase();
@@ -424,12 +419,12 @@ export const userRoutes = {
         console.error('Search error:', err);
         return Response.json([], { status: 500 });
       }
-    },
+    }),
   },
 
   // 2. USER DETAIL API - Profile page
   '/api/user': {
-    GET: async (req: Request) => {
+    GET: withCors(async (req: Request) => {
       try {
         const url = new URL(req.url, `http://${req.headers.get('host')}`);
         const idParam = url.searchParams.get('id');
@@ -476,12 +471,12 @@ export const userRoutes = {
           { status: 500 }
         );
       }
-    },
+    }),
   },
 
   // GET /api/chat/history?partnerId=uuid (Supabase)
   '/api/chat/history': {
-    GET: async (req: Request) => {
+    GET: withCors(async (req: Request) => {
       try {
         const supabaseUser = await getUserFromAuthHeader(req);
         const myId = supabaseUser.id;
@@ -517,12 +512,12 @@ export const userRoutes = {
         console.error('Chat history:', err);
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
       }
-    },
+    }),
   },
 
   // POST /api/chat/send { toId: 'username', message: 'hello' } (Supabase + new auth)
   '/api/chat/send': {
-    POST: async (req: Request) => {
+    POST: withCors(async (req: Request) => {
       try {
         const supabaseUser = await getUserFromAuthHeader(req);
         const myId = supabaseUser.id;
@@ -570,12 +565,12 @@ export const userRoutes = {
         console.error('Chat send error:', err);
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
       }
-    },
+    }),
   },
 
   // POST /api/rooms (create room - protected)
   '/api/rooms': {
-    POST: async (req: Request) => {
+    POST: withCors(async (req: Request) => {
       try {
         const supabaseUser = await getUserFromAuthHeader(req);
         const hostAuthId = supabaseUser.id;
@@ -647,12 +642,12 @@ export const userRoutes = {
           { status: 401 }
         );
       }
-    },
+    }),
   },
 
   // GET/DELETE /api/rooms/:id (Supabase)
   '/api/rooms/:id': {
-    GET: async (req: Request) => {
+    GET: withCors(async (req: Request) => {
       try {
         const url = new URL(req.url);
         const roomId = decodeURIComponent(url.pathname.split('/').pop() || '');
@@ -674,9 +669,9 @@ export const userRoutes = {
         console.error('Get room error:', error);
         return Response.json({ error: 'Server error' }, { status: 500 });
       }
-    },
+    }),
 
-    DELETE: async (req: Request) => {
+    DELETE: withCors(async (req: Request) => {
       try {
         const supabaseUser = await getUserFromAuthHeader(req);
         const url = new URL(req.url);
@@ -711,11 +706,11 @@ export const userRoutes = {
         console.error('Delete room:', err);
         return Response.json({ error: 'Unauthorized' }, { status: 401 });
       }
-    },
+    }),
   },
 
   '/api/posts': {
-    POST: async (req: Request) => {
+    POST: withCors(async (req: Request) => {
       try {
         // Get user from cookie
 
@@ -795,9 +790,9 @@ export const userRoutes = {
         console.error('Posts error:', err);
         return Response.json({ error: 'Server error' }, { status: 500 });
       }
-    },
+    }),
 
-    GET: async (req: Request) => {
+    GET: withCors(async (req: Request) => {
       try {
         const { data: posts, error } = await supabaseAdmin
           .from('posts')
@@ -836,6 +831,6 @@ export const userRoutes = {
         console.error('GET posts error:', err);
         return Response.json({ error: 'Server error' }, { status: 500 });
       }
-    },
+    }),
   },
 };
