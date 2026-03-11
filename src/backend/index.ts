@@ -7,41 +7,12 @@ interface WSData {
   roomType?: 'chat' | 'audio';
 }
 
-const renderUrl = Bun.env.RENDER_URL;
-
-const allowedOrigins = ['http://localhost:3000', `${renderUrl}`];
-const corsHeaders = {
-  'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : '',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
-
-// wrapper function to add cors to each endpoint
-export const withCors = (
-  handler: (req: Request) => Response | Promise<Response>
-) => {
-  return async (req: Request) => {
-    if (req.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders });
-    }
-    const response = await handler(req);
-    const newHeaders = new Headers(response.headers);
-    Object.entries(corsHeaders).forEach(([k, v]) =>
-      newHeaders.set(k, v as string)
-    );
-    return new Response(response.body, {
-      status: response.status,
-      headers: newHeaders,
-    });
-  };
-};
-
 import { serve } from 'bun';
 import index from '../frontend/index.html';
 import { userRoutes, getUserFromAuthHeader } from './userRoutes'; // Import helper
 import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = Bun.env.SUPABASE_URL;
-const supabaseAnonKey = Bun.env.SUPABASE_URL;
+const supabaseAnonKey = Bun.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const server = serve<WSData>({
@@ -95,6 +66,21 @@ const server = serve<WSData>({
 
   async fetch(req, server) {
     const url = new URL(req.url);
+
+    // 👈 ADD THIS BLOCK
+    const origin = req.headers.get('Origin') || '';
+    const allowedOrigins = ['http://localhost:3000', `${Bun.env.RENDER_URL}`];
+    const corsHeaders: Record<string, string> = {
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true',
+    };
+    if (allowedOrigins.includes(origin)) {
+      corsHeaders['Access-Control-Allow-Origin'] = origin;
+    }
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
 
     // ===== CHAT WEBSOCKET =====
     if (

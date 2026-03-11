@@ -4,23 +4,28 @@ import crypto from 'crypto';
 const renderUrl = Bun.env.RENDER_URL;
 
 const allowedOrigins = ['http://localhost:3000', `${renderUrl}`];
-const corsHeaders = {
-  'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : '',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
 
-// wrapper function to add cors to each endpoint
+// Move corsHeaders inside wrapper or update dynamically
 const withCors = (handler: (req: Request) => Response | Promise<Response>) => {
   return async (req: Request) => {
+    const origin = req.headers.get('Origin') || '';
+    const corsHeaders: Record<string, string> = {
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Credentials': 'true',
+    };
+
+    if (allowedOrigins.includes(origin)) {
+      corsHeaders['Access-Control-Allow-Origin'] = origin;
+    }
+
     if (req.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
+
     const response = await handler(req);
     const newHeaders = new Headers(response.headers);
-    Object.entries(corsHeaders).forEach(([k, v]) =>
-      newHeaders.set(k, v as string)
-    );
+    Object.entries(corsHeaders).forEach(([k, v]) => newHeaders.set(k, v));
     return new Response(response.body, {
       status: response.status,
       headers: newHeaders,
