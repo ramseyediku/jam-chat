@@ -15,11 +15,11 @@ const withCors = (handler: (req: Request) => Response | Promise<Response>) => {
     const corsHeaders: Record<string, string> = {
       'Access-Control-Allow-Origin': allowedOrigins.includes(origin)
         ? origin
-        : allowedOrigins[0], // 👈 CRITICAL FIX
+        : allowedOrigins[0],
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Allow-Credentials': 'true',
-      Vary: 'Origin', // Cache safety
+      Vary: 'Origin',
     };
 
     if (req.method === 'OPTIONS') {
@@ -119,50 +119,26 @@ export const userRoutes = {
           return Response.json({ error: 'Username taken' }, { status: 400 });
         }
 
-        // 1. Email signup with fallback
+        // test email signup
         const uniqueEmail = `${username}@jamchat.demo`;
-        const tempPassword = 'demo123';
+        const tempPassword = 'demopass123';
 
-        let supabaseUser = null;
+        const { data: adminData, error: adminError } =
+          await supabaseAdmin.auth.admin.createUser({
+            email: uniqueEmail,
+            password: tempPassword,
+            email_confirm: true,
+            user_metadata: { username, age, gender, bio },
+          });
 
-        // Try regular signUp first
-        const {
-          data: { user: authUser },
-          error: authError,
-        } = await supabase.auth.signUp({
-          email: uniqueEmail,
-          password: tempPassword,
-          options: {
-            data: { username, age: age.toString(), gender, bio },
-            emailRedirectTo: `${origin}`,
-          },
-        });
+        console.log(
+          'adminData:',
+          !!adminData,
+          JSON.stringify(adminData, null, 2)
+        );
+        console.log('adminError full:', JSON.stringify(adminError, null, 2));
 
-        console.log('=== SIGNUP DEBUG ===');
-        console.log('authUser:', !!authUser, authUser?.id || 'NO ID');
-        console.log('authError full:', JSON.stringify(authError, null, 2));
-
-        if (!authUser) {
-          console.log('=== ADMIN CREATE DEBUG ===');
-          const { data: adminData, error: adminError } =
-            await supabaseAdmin.auth.admin.createUser({
-              email: uniqueEmail,
-              password: tempPassword,
-              email_confirm: true,
-              user_metadata: { username, age, gender, bio },
-            });
-
-          console.log(
-            'adminData:',
-            !!adminData,
-            JSON.stringify(adminData, null, 2)
-          );
-          console.log('adminError full:', JSON.stringify(adminError, null, 2));
-
-          supabaseUser = adminData?.user;
-        } else {
-          supabaseUser = authUser;
-        }
+        let supabaseUser = adminData?.user;
 
         console.log('FINAL supabaseUser.id:', supabaseUser?.id);
         console.log('====================');
