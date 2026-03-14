@@ -142,6 +142,7 @@ export const userRoutes = {
 
         console.log('FINAL supabaseUser.id:', supabaseUser?.id);
         console.log('====================');
+        console.log('the actual user' + supabaseUser);
 
         if (!supabaseUser?.id) {
           return Response.json(
@@ -149,7 +150,6 @@ export const userRoutes = {
               error: 'Auth failed - no user ID',
               debug: {
                 uniqueEmail,
-                authError: authError?.message,
               },
             },
             { status: 500 }
