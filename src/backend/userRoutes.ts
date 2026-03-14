@@ -174,7 +174,6 @@ export const userRoutes = {
               debug: {
                 uniqueEmail,
                 authError: authError?.message,
-                adminError: adminError?.message,
               },
             },
             { status: 500 }
