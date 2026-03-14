@@ -6,7 +6,6 @@ interface WSData {
   roomId?: string; // Audio room
   roomType?: 'chat' | 'audio';
 }
-import 'dotenv/config';
 import { serve } from 'bun';
 import index from '../frontend/index.html';
 import { userRoutes, getUserFromAuthHeader } from './userRoutes'; // Import helper
