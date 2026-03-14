@@ -119,42 +119,11 @@ export const userRoutes = {
           return Response.json({ error: 'Username taken' }, { status: 400 });
         }
 
-        // test email signup
-        const uniqueEmail = `no-reply-${username}-${Date.now()}@gmail.com`;
-        const tempPassword = 'P@ssw0rd123Secure';
+        const authId = crypto.randomUUID(); // Primary key for users table
 
-        const { data: adminData, error: adminError } =
-          await supabaseAdmin.auth.admin.createUser({
-            email: uniqueEmail,
-            password: tempPassword,
-            email_confirm: true,
-          });
-
-        console.log(
-          'adminData:',
-          !!adminData,
-          JSON.stringify(adminData, null, 2)
-        );
-
-        console.log('adminError full:', JSON.stringify(adminError, null, 2));
-        let supabaseUser = adminData?.user;
-
-        if (!supabaseUser?.id) {
-          return Response.json(
-            {
-              error: 'Auth failed - no user ID',
-              debug: {
-                uniqueEmail,
-              },
-            },
-            { status: 500 }
-          );
-        }
-
-        // 2. Generate uniqueid
+        // 1. Generate uniqueid
         let uniqueid: number;
         let existingId;
-
         do {
           uniqueid = crypto.randomInt(10000000, 99999999);
           ({ data: existingId } = await supabaseAdmin
@@ -164,11 +133,11 @@ export const userRoutes = {
             .single());
         } while (existingId);
 
-        // 3. Insert profile
+        // 2. Insert profile (auth_id = our cookie ID)
         const { data: insertedUser, error: profileError } = await supabaseAdmin
           .from('users')
           .insert({
-            auth_id: supabaseUser.id,
+            id: authId,
             uniqueid,
             username,
             age,
@@ -176,56 +145,60 @@ export const userRoutes = {
             bio,
             country: 'United Kingdom',
           })
-          .select('id, auth_id')
+          .select(
+            'id, profile_image, uniqueid, username, age, gender, bio, country'
+          )
           .single();
 
-        console.log('INSERTED:', insertedUser); // 👈 Must show auth_id!
+        console.log('INSERTED:', insertedUser);
 
         if (profileError || !insertedUser) {
           console.error('Profile error:', profileError);
           return Response.json({ error: 'Profile failed' }, { status: 500 });
         }
 
-        // 4. PFP upload
+        // 3. PFP upload + update
         const pfpFile = data.get('pfp') as File | null;
         let profileFilename = null;
 
         if (pfpFile) {
           const bytes = await pfpFile.arrayBuffer();
+          const buffer = Buffer.from(bytes);
           const ext = path.extname(pfpFile.name) || '.jpg';
           profileFilename = `pfp_${uniqueid}_${Date.now()}${ext}`;
 
           const { error: uploadError } = await supabaseAdmin.storage
             .from('profile-images')
-            .upload(profileFilename, bytes, {
+            .upload(profileFilename, buffer, {
               cacheControl: '3600',
               upsert: true,
               contentType: pfpFile.type || 'image/jpeg',
             });
 
-          if (uploadError) {
-            console.error('PFP error:', uploadError);
-            // Don't fail registration
-          } else {
+          if (!uploadError) {
+            // Update with real auth_id
             await supabaseAdmin
               .from('users')
               .update({ profile_image: profileFilename })
-              .eq('auth_id', supabaseUser.id);
+              .eq('id', authId);
+            console.log('PFP updated');
+          } else {
+            console.error('PFP upload failed:', uploadError);
           }
         }
 
-        // 5. Fetch profile
+        // 4. Final profile (with PFP URL)
         const { data: dbUser } = await supabaseAdmin
           .from('users')
           .select(
             'id, profile_image, uniqueid, username, age, gender, bio, country'
           )
-          .eq('auth_id', supabaseUser.id)
+          .eq('id', authId)
           .single();
 
         const profile = withProfileUrl(dbUser!);
 
-        // 6. Set stable user-id cookie
+        // 5. Set auth cookie
         const headers = new Headers({ 'Content-Type': 'application/json' });
         headers.append(
           'Set-Cookie',
@@ -236,8 +209,8 @@ export const userRoutes = {
           `user-id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
         );
         headers.append(
-          'Set-Cookie',
-          `auth-id=${insertedUser.id}; HttpOnly; Path=/; Max-Age=3600; SameSite=None; Secure`
+          `Set-Cookie`,
+          `auth-id=${authId}; HttpOnly; Path=/; Max-Age=2592000; SameSite=None; Secure`
         );
 
         return Response.json(
