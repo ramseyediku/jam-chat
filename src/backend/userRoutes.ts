@@ -138,28 +138,45 @@ export const userRoutes = {
           },
         });
 
-        console.log('signUp:', { authUser: !!authUser, authError });
+        console.log('signUp:', {
+          authUser: !!authUser,
+          authError: authError?.message,
+        });
 
         if (!authUser) {
           // Fallback: admin.createUser (instant confirmed)
-          const { data: adminUser, error: adminError } =
+          const { data: adminData, error: adminError } =
             await supabaseAdmin.auth.admin.createUser({
               email: uniqueEmail,
               password: tempPassword,
               email_confirm: true,
               user_metadata: { username, age, gender, bio },
             });
-          console.log('admin.createUser:', {
-            adminUser: !!adminUser,
-            adminError,
-          });
-          supabaseUser = adminUser;
+          console.log(
+            'admin.createUser data:',
+            !!adminData,
+            'adminError:',
+            adminError?.message
+          );
+
+          supabaseUser = adminData?.user;
         } else {
           supabaseUser = authUser;
         }
 
-        if (supabaseUser == null)
-          return Response.json({ error: 'Auth failed' }, { status: 500 });
+        console.log(
+          'supabaseUser:',
+          !!supabaseUser?.id,
+          'ID:',
+          supabaseUser?.id
+        ); // 👈 Add this
+
+        if (!supabaseUser?.id) {
+          return Response.json(
+            { error: 'Auth failed - no user ID' },
+            { status: 500 }
+          );
+        }
 
         // 2. Generate uniqueid
         let uniqueid: number;
