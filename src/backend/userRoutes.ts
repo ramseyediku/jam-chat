@@ -90,18 +90,15 @@ export const userRoutes = {
 
   '/api/register': {
     POST: withCors(async (req: Request) => {
-      const origin = req.headers.get('Origin') || '';
-      console.log('hey');
-      console.log(origin);
-
       try {
+        const origin = new URL(req.url).origin;
         const data = await req.formData();
         const username = (data.get('username') as string)?.trim().toLowerCase();
         const age = parseInt((data.get('age') as string) || '0');
         const gender = data.get('gender') as string;
         const bio = (data.get('bio') as string)?.trim() || '';
 
-        // Validation
+        // General Validation
         if (
           !username ||
           username.length < 3 ||
@@ -137,7 +134,7 @@ export const userRoutes = {
           password: tempPassword,
           options: {
             data: { username, age: age.toString(), gender, bio },
-            emailRedirectTo: 'http://localhost:3000',
+            emailRedirectTo: `${origin}`,
           },
         });
 
@@ -161,13 +158,13 @@ export const userRoutes = {
           supabaseUser = authUser;
         }
 
-        if (!supabaseUser) {
+        if (supabaseUser == null)
           return Response.json({ error: 'Auth failed' }, { status: 500 });
-        }
 
         // 2. Generate uniqueid
         let uniqueid: number;
         let existingId;
+
         do {
           uniqueid = crypto.randomInt(10000000, 99999999);
           ({ data: existingId } = await supabaseAdmin
@@ -243,17 +240,15 @@ export const userRoutes = {
         headers.append(
           'Set-Cookie',
           `auth-id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
-        ); // Expire old
+        );
         headers.append(
           'Set-Cookie',
           `user-id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
         );
         headers.append(
           'Set-Cookie',
-          `auth-id=${insertedUser.id}; HttpOnly; Path=/; Max-Age=3600; SameSite=Strict`
+          `auth-id=${insertedUser.id}; HttpOnly; Path=/; Max-Age=3600; SameSite=None; Secure`
         );
-
-        console.log('heyy');
 
         return Response.json(
           { user: profile, message: 'Registered!' },
