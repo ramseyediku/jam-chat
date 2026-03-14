@@ -128,7 +128,6 @@ export const userRoutes = {
             email: uniqueEmail,
             password: tempPassword,
             email_confirm: true,
-            user_metadata: { username, age, gender, bio },
           });
 
         console.log(
@@ -136,13 +135,15 @@ export const userRoutes = {
           !!adminData,
           JSON.stringify(adminData, null, 2)
         );
-        console.log('adminError full:', JSON.stringify(adminError, null, 2));
 
+        console.log('adminError full:', JSON.stringify(adminError, null, 2));
         let supabaseUser = adminData?.user;
 
-        console.log('FINAL supabaseUser.id:', supabaseUser?.id);
-        console.log('====================');
-        console.log('the actual user' + supabaseUser);
+        console.log('lol');
+        console.log(adminData);
+        console.log(supabase);
+        console.log(serviceApiKey);
+        console.log('lol');
 
         if (!supabaseUser?.id) {
           return Response.json(
