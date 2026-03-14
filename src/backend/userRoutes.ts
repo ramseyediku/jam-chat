@@ -138,13 +138,12 @@ export const userRoutes = {
           },
         });
 
-        console.log('signUp:', {
-          authUser: !!authUser,
-          authError: authError?.message,
-        });
+        console.log('=== SIGNUP DEBUG ===');
+        console.log('authUser:', !!authUser, authUser?.id || 'NO ID');
+        console.log('authError full:', JSON.stringify(authError, null, 2));
 
         if (!authUser) {
-          // Fallback: admin.createUser (instant confirmed)
+          console.log('=== ADMIN CREATE DEBUG ===');
           const { data: adminData, error: adminError } =
             await supabaseAdmin.auth.admin.createUser({
               email: uniqueEmail,
@@ -152,28 +151,32 @@ export const userRoutes = {
               email_confirm: true,
               user_metadata: { username, age, gender, bio },
             });
+
           console.log(
-            'admin.createUser data:',
+            'adminData:',
             !!adminData,
-            'adminError:',
-            adminError?.message
+            JSON.stringify(adminData, null, 2)
           );
+          console.log('adminError full:', JSON.stringify(adminError, null, 2));
 
           supabaseUser = adminData?.user;
         } else {
           supabaseUser = authUser;
         }
 
-        console.log(
-          'supabaseUser:',
-          !!supabaseUser?.id,
-          'ID:',
-          supabaseUser?.id
-        ); // 👈 Add this
+        console.log('FINAL supabaseUser.id:', supabaseUser?.id);
+        console.log('====================');
 
         if (!supabaseUser?.id) {
           return Response.json(
-            { error: 'Auth failed - no user ID' },
+            {
+              error: 'Auth failed - no user ID',
+              debug: {
+                uniqueEmail,
+                authError: authError?.message,
+                adminError: adminError?.message,
+              },
+            },
             { status: 500 }
           );
         }
