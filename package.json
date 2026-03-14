@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun --hot src/backend/index.ts",
-    "build": "bun build ./src/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
+    "build": "bun build ./src/frontend/index.html --outdir=dist --sourcemap --target=browser --minify --define:process.env.NODE_ENV='\"production\"' --env='BUN_PUBLIC_*'",
+    "frontend:build": "cd src/frontend && bun run build",
     "start": "NODE_ENV=production bun src/index.ts"
   },
   "dependencies": {

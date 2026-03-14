@@ -6,13 +6,13 @@ interface WSData {
   roomId?: string; // Audio room
   roomType?: 'chat' | 'audio';
 }
-
+import 'dotenv/config';
 import { serve } from 'bun';
 import index from '../frontend/index.html';
 import { userRoutes, getUserFromAuthHeader } from './userRoutes'; // Import helper
 import { createClient } from '@supabase/supabase-js';
-const supabaseUrl = Bun.env.SUPABASE_URL;
-const supabaseAnonKey = Bun.env.SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const server = serve<WSData>({
@@ -69,7 +69,10 @@ const server = serve<WSData>({
 
     // 👈 ADD THIS BLOCK
     const origin = req.headers.get('Origin') || '';
-    const allowedOrigins = ['http://localhost:3000', `${Bun.env.RENDER_URL}`];
+    const allowedOrigins = [
+      'http://localhost:3000',
+      `${process.env.RENDER_URL}`,
+    ];
     const corsHeaders: Record<string, string> = {
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',

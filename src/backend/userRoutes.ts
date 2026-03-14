@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 import crypto from 'crypto';
-import 'dotenv/config';
 
 const renderUrl = process.env.RENDER_URL;
 
