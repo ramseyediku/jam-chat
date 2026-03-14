@@ -6,15 +6,20 @@ const renderUrl = process.env.RENDER_URL;
 
 const allowedOrigins = ['http://localhost:3000', `${renderUrl}`];
 
-// Move corsHeaders inside wrapper or update dynamically
+//cors handler function
 const withCors = (handler: (req: Request) => Response | Promise<Response>) => {
   return async (req: Request) => {
     const origin = req.headers.get('Origin') || '';
+    console.log('🌐 CORS Origin:', origin); // Debug: localhost:3000
 
     const corsHeaders: Record<string, string> = {
+      'Access-Control-Allow-Origin': allowedOrigins.includes(origin)
+        ? origin
+        : allowedOrigins[0], // 👈 CRITICAL FIX
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Allow-Credentials': 'true',
+      Vary: 'Origin', // Cache safety
     };
 
     if (req.method === 'OPTIONS') {
@@ -870,6 +875,7 @@ export const userRoutes = {
 
   '/api/test-users': {
     GET: withCors(async (req: Request) => {
+      console.log('hey');
       const origin = req.headers.get('Origin') || '';
       console.log('🧪 Test Origin:', origin); // Logs your client origin
 
