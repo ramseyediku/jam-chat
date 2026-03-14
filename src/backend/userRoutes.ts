@@ -120,7 +120,7 @@ export const userRoutes = {
         }
 
         // test email signup
-        const uniqueEmail = `${username}-user@jamchat.com`;
+        const uniqueEmail = `${username}@example.com`;
         const tempPassword = 'P@ssw0rd123Secure';
 
         const { data: adminData, error: adminError } =
