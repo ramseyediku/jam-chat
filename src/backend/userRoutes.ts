@@ -141,7 +141,7 @@ export const userRoutes = {
 
         console.log('lol');
         console.log(adminData);
-        console.log(supabase);
+        console.log(supabaseUser);
         console.log(serviceApiKey);
         console.log('lol');
 
