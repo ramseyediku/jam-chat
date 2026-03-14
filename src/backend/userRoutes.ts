@@ -17,13 +17,6 @@ const withCors = (handler: (req: Request) => Response | Promise<Response>) => {
       'Access-Control-Allow-Credentials': 'true',
     };
 
-    if (allowedOrigins.includes(origin)) {
-      console.log(origin);
-      corsHeaders['Access-Control-Allow-Origin'] = origin;
-    } else {
-      console.log('fuck');
-    }
-
     if (req.method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
@@ -89,8 +82,13 @@ const getUserFromCookie = async (req: Request) => {
 
 export const userRoutes = {
   // POST /api/register {username, age, gender, bio?, pfp?}
+
   '/api/register': {
     POST: withCors(async (req: Request) => {
+      const origin = req.headers.get('Origin') || '';
+      console.log('hey');
+      console.log(origin);
+
       try {
         const data = await req.formData();
         const username = (data.get('username') as string)?.trim().toLowerCase();
@@ -249,6 +247,8 @@ export const userRoutes = {
           'Set-Cookie',
           `auth-id=${insertedUser.id}; HttpOnly; Path=/; Max-Age=3600; SameSite=Strict`
         );
+
+        console.log('heyy');
 
         return Response.json(
           { user: profile, message: 'Registered!' },
@@ -864,6 +864,47 @@ export const userRoutes = {
       } catch (err) {
         console.error('GET posts error:', err);
         return Response.json({ error: 'Server error' }, { status: 500 });
+      }
+    }),
+  },
+
+  '/api/test-users': {
+    GET: withCors(async (req: Request) => {
+      const origin = req.headers.get('Origin') || '';
+      console.log('🧪 Test Origin:', origin); // Logs your client origin
+
+      try {
+        const {
+          data: users,
+          error,
+          count,
+        } = await supabaseAdmin
+          .from('users')
+          .select('*', { count: 'exact' })
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (error) throw error;
+
+        return Response.json(
+          {
+            success: true,
+            origin, // Echo for CORS debug
+            timestamp: new Date().toISOString(),
+            users: users || [],
+            total: count || 0,
+            message: `Found ${count || 0} users - CORS test passed if you see this!`,
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache',
+            },
+          }
+        );
+      } catch (err) {
+        console.error('Test endpoint error:', err);
+        return Response.json({ error: err.message }, { status: 500 });
       }
     }),
   },
