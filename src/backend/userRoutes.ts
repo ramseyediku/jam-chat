@@ -120,8 +120,8 @@ export const userRoutes = {
         }
 
         // test email signup
-        const uniqueEmail = `${username}@jamchat.demo`;
-        const tempPassword = 'demopass123';
+        const uniqueEmail = `${username}-user@jamchat.com`;
+        const tempPassword = 'P@ssw0rd123Secure';
 
         const { data: adminData, error: adminError } =
           await supabaseAdmin.auth.admin.createUser({
@@ -138,12 +138,6 @@ export const userRoutes = {
 
         console.log('adminError full:', JSON.stringify(adminError, null, 2));
         let supabaseUser = adminData?.user;
-
-        console.log('lol');
-        console.log(adminData);
-        console.log(supabaseUser);
-        console.log(serviceApiKey);
-        console.log('lol');
 
         if (!supabaseUser?.id) {
           return Response.json(
