@@ -1,7 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import path from 'path';
 import crypto from 'crypto';
-const renderUrl = Bun.env.RENDER_URL;
+import 'dotenv/config';
+
+const renderUrl = process.env.RENDER_URL;
 
 const allowedOrigins = ['http://localhost:3000', `${renderUrl}`];
 
@@ -9,6 +11,7 @@ const allowedOrigins = ['http://localhost:3000', `${renderUrl}`];
 const withCors = (handler: (req: Request) => Response | Promise<Response>) => {
   return async (req: Request) => {
     const origin = req.headers.get('Origin') || '';
+
     const corsHeaders: Record<string, string> = {
       'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -16,7 +19,10 @@ const withCors = (handler: (req: Request) => Response | Promise<Response>) => {
     };
 
     if (allowedOrigins.includes(origin)) {
+      console.log(origin);
       corsHeaders['Access-Control-Allow-Origin'] = origin;
+    } else {
+      console.log('fuck');
     }
 
     if (req.method === 'OPTIONS') {
@@ -34,9 +40,9 @@ const withCors = (handler: (req: Request) => Response | Promise<Response>) => {
 };
 
 // ===== SUPABASE DETAILS =====
-const supabaseUrl = Bun.env.SUPABASE_URL;
-const supabaseAnonKey = Bun.env.SUPABASE_URL;
-const serviceApiKey = Bun.env.SERVICE_API_KEY;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_URL;
+const serviceApiKey = process.env.SERVICE_API_KEY;
 
 // Admin client (service_role key - full perms, bypasses RLS)
 export const supabaseAdmin = createClient(supabaseUrl, serviceApiKey);
