@@ -7,6 +7,8 @@ import ExploreIcon from '../../assets/menu/feed.webp';
 import VideoIcon from '../../assets/menu/video.webp';
 import AddIcon from '../../assets/menu/new.webp';
 import MessageIcon from '../../assets/menu/message.webp';
+import SettingsIcon from '../../assets/menu/settings.webp';
+
 import './Sidebar.css';
 
 export default function Sidebar() {
@@ -54,6 +56,13 @@ export default function Sidebar() {
           <Link to="/messages" className="sidebar__link">
             <img src={MessageIcon} alt="Messages" className="sidebar__icon" />
             <span className="sidebar__label">Messages</span>
+          </Link>
+        </li>
+
+        <li className="sidebar__item">
+          <Link to="/" className="sidebar__link">
+            <img src={SettingsIcon} alt="Messages" className="sidebar__icon" />
+            <span className="sidebar__label">Settings</span>
           </Link>
         </li>
       </ul>

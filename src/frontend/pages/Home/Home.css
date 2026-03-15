@@ -2,8 +2,9 @@
 
 /* ===== ROOT ===== */
 .home {
+  margin-top: 0.5em;
   display: flex;
-  gap: 1em;
+  gap: 4em;
 }
 
 /* ===== TOP BAR (Username + Search + Logo) ===== */
@@ -77,17 +78,30 @@
   overflow: hidden;
 }
 
-.home__main {
-  flex: 1;
-  /* EMPTY */
-}
-
 /* Home.css - Smaller buttons under navbar */
 
 /* ===== MAIN WITH TIGHT BUTTONS ===== */
 .home__main {
+  flex: 1;
   padding-top: 1em;
-  padding-left: 1em;
+}
+
+.home__main__banner {
+  margin-block: 1em;
+  display: block;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+
+  img {
+    border-radius: var(--border-radius);
+  }
+}
+
+.home__main__banner:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 /* ===== COMPACT BUTTONS ===== */
@@ -98,9 +112,8 @@
 }
 
 .nav-button {
-  background: var(--clr-light, white);
-  color: var(--clr-purple-dark-2, #581c87);
-  border: solid 1px var(--clr-grey);
+  background: var(--clr-purple-dark-2, #581c87);
+  color: var(--clr-light);
   padding: 0.75rem 1em; /* Smaller: 14px 24px */
   border-radius: calc(var(--border-radius) * 2.5); /* Slightly smaller radius */
   font-weight: 600;
@@ -110,38 +123,46 @@
 }
 
 .nav-button:hover {
-  background: var(--clr-purple-dark-2);
-  color: var(--clr-light);
-  transform: translateY(-1px); /* Subtle lift */
-}
-
-.home__aside {
-  width: 25em;
-  height: 15em;
-  margin-right: 10em;
+  /* background: var(--clr-purple-dark-2);
+  color: var(--clr-light); */
+  transform: translateY(-4px);
 }
 
 /* ===== USER CARD IN ASIDE ===== */
 .home__aside {
   width: 25em;
-  height: 15em;
   margin-right: 10em;
+  margin-top: 1em;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.home__aside__footer {
+  color: var(--clr-grey);
+  font-size: 0.85rem;
+  line-height: 1.6;
+  text-align: left;
+  padding-block: 1.5em;
+
+  a {
+    color: var(--clr-grey);
+    &:hover {
+      text-decoration: underline;
+    }
+  }
 }
 
 .user-card {
-  border: solid 2px var(--clr-grey);
+  background-color: var(--clr-purple);
   border-radius: var(--border-radius);
-  padding: 1.5rem;
+  padding: 0.5rem;
   width: 100%;
-  max-width: 18rem;
+  max-width: 20rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 0.75rem;
 }
@@ -153,22 +174,15 @@
 }
 
 .user-card__avatar {
-  width: 5rem;
-  height: 5rem;
-  border-radius: 50%;
-}
-
-.user-avatar {
-  object-fit: contain;
-}
-
-.user-card__info {
-  text-align: center;
+  width: 4.5rem;
+  aspect-ratio: 1/1;
+  border-radius: var(--border-radius);
+  object-fit: cover;
 }
 
 .user-card__username {
   display: block;
-  font-size: 1.125rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: var(--clr-purple-dark-2);
   margin-bottom: 0.25rem;
