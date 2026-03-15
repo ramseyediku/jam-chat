@@ -12,12 +12,12 @@ export default function Messages() {
 
   // Fetch my ID and recent chats
   useEffect(() => {
-    fetch('/api/profile')
+    fetch('https://jam-chat.onrender.com/api/profile')
       .then((res) => res.json())
       .then((user) => {
         setMyId(user.id);
         // Fetch recent chats (last message per partner)
-        fetch('/api/chathistory?partnerId=recent') // Or custom endpoint
+        fetch('https://jam-chat.onrender.com/api/chathistory?partnerId=recent') // Or custom endpoint
           .then((res) => res.json())
           .then((history) => {
             const recentChats = {};

@@ -17,7 +17,7 @@ export default function AudioRoom() {
   // 1. Fetch profile + room data (FIXED deps)
   useEffect(() => {
     // Always fetch profile first
-    fetch('/api/profile')
+    fetch('https://jam-chat.onrender.com/api/profile')
       .then((res) => res.json())
       .then((user) => {
         setUsername(user.username);
@@ -26,7 +26,7 @@ export default function AudioRoom() {
       });
 
     // Fetch room separately
-    fetch(`/api/rooms/${roomId}`)
+    fetch(`https://jam-chat.onrender.com/api/rooms/${roomId}`)
       .then((res) => res.json())
       .then((roomData) => {
         console.log('🏠 Room loaded:', roomData); // ← Check hostId here
@@ -38,7 +38,7 @@ export default function AudioRoom() {
   // NEW useEffect - fetch host username if not me
   useEffect(() => {
     if (room?.hostId && room.hostId !== myId && !hostUsername) {
-      fetch(`/api/users/${room.hostId}`) // Assumes /api/users/:id endpoint
+      fetch(`https://jam-chat.onrender.com/api/users/${room.hostId}`) // Assumes /api/users/:id endpoint
         .then((res) => res.json())
         .then((user) => setHostUsername(user.username))
         .catch(() => setHostUsername(`User ${room.hostId}`));
@@ -50,7 +50,9 @@ export default function AudioRoom() {
     if (!roomId || !myId || !username) return;
 
     console.log('🎤 Connecting WS to audio room:', roomId);
-    ws.current = new WebSocket(`/api/audio?roomId=${roomId}`); // Relative URL (cookies auto-sent)
+    ws.current = new WebSocket(
+      `https://jam-chat.onrender.com/api/audio?roomId=${roomId}`
+    ); // Relative URL (cookies auto-sent)
 
     ws.current.onopen = () => {
       console.log('✅ Audio room connected');

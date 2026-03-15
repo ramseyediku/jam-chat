@@ -60,15 +60,19 @@ export function Login() {
       formDataToSend.append('age', parseInt(formData.age));
       formDataToSend.append('gender', formData.gender);
       formDataToSend.append('bio', formData.bio.trim());
+
       if (pfpFile) {
         formDataToSend.append('pfp', pfpFile);
       }
 
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        body: formDataToSend,
-        credentials: 'include',
-      });
+      const response = await fetch(
+        'https://jam-chat.onrender.com/api/register',
+        {
+          method: 'POST',
+          body: formDataToSend,
+          credentials: 'include',
+        }
+      );
       const data = await response.json();
 
       if (response.ok) {
@@ -95,7 +99,7 @@ export function Login() {
     setError('');
 
     try {
-      const response = await fetch('/api/login', {
+      const response = await fetch('https://jam-chat.onrender.com/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -277,6 +281,35 @@ export function Login() {
               By signing in, you agree to our <a href="#">Terms</a> and{' '}
               <a href="#">Privacy Policy</a>
             </small>
+
+            <button
+              type="button" // Not submit!
+              onClick={async () => {
+                try {
+                  console.log('🧪 Testing /api/test-users...');
+                  const res = await fetch(
+                    'https://jam-chat.onrender.com/api/test-users',
+                    {
+                      method: 'GET',
+                      credentials: 'include',
+                    }
+                  );
+                  const data = await res.json();
+                  console.log('✅ Test success:', data);
+                  alert(
+                    `Test OK! Users: ${data.count}\nOrigin was: ${data.origin}`
+                  );
+                } catch (err) {
+                  console.error('❌ Test failed:', err);
+                  alert('Test failed - CORS/DB issue: ' + err.message);
+                }
+              }}
+              className="button"
+              style={{ background: '#10b981', marginBottom: '10px' }}
+            >
+              🧪 Test API (Users)
+            </button>
+
             {error && <div className="error">{error}</div>}
           </form>
         )}

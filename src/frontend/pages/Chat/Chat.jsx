@@ -16,7 +16,7 @@ export default function Chat() {
 
   // 1. My profile FIRST (stable)
   useEffect(() => {
-    fetch('/api/profile')
+    fetch('https://jam-chat.onrender.com/api/profile')
       .then((res) => res.json())
       .then((user) => {
         setUsername(user.username);
@@ -29,13 +29,13 @@ export default function Chat() {
     if (!id || !myUserId) return;
 
     // Partner
-    fetch(`/api/user?id=${id}`)
+    fetch(`https://jam-chat.onrender.com/api/user?id=${id}`)
       .then((res) => res.json())
       .then(setPartner);
 
     // History (empty messages first)
     setMessages([]);
-    fetch(`/api/chat/history?partnerId=${id}`)
+    fetch(`https://jam-chat.onrender.com/api/chat/history?partnerId=${id}`)
       .then((res) => res.json())
       .then((history) => {
         setMessages(
@@ -55,7 +55,9 @@ export default function Chat() {
 
     ws.current?.close(); // Cleanup old
     console.log('Connecting to WS chat...');
-    ws.current = new WebSocket(`ws://localhost:3000/api/chat?toId=${id}`);
+    ws.current = new WebSocket(
+      `wss://jam-chat.onrender.com/api/chat?toId=${id}`
+    );
     console.log('WebSocket instance created:', ws.current);
     ws.current.onopen = () => console.log('✅ Chat connected');
     ws.current.onmessage = (e) => {
@@ -98,7 +100,7 @@ export default function Chat() {
       ws.current.send(messageText); // LIVE
 
       // 2. DB save in background (no await)
-      fetch('/api/chat/send', {
+      fetch('https://jam-chat.onrender.com/api/chat/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ toId: id, message: messageText }),

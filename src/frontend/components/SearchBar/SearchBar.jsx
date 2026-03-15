@@ -13,7 +13,9 @@ export default function SearchBar({ searchQuery, setSearchQuery }) {
     }
 
     const timer = setTimeout(() => {
-      fetch(`/api/search?query=${encodeURIComponent(searchQuery)}`)
+      fetch(
+        `https://jam-chat.onrender.com/api/search?query=${encodeURIComponent(searchQuery)}`
+      )
         .then((res) => res.json())
         .then(setResults)
         .catch(console.error);

@@ -43,11 +43,14 @@ export default function PostUploadModal({ onClose }) {
       formData.append('visibility', 'public');
 
       try {
-        const response = await fetch('/api/posts', {
-          method: 'POST',
-          body: formData,
-          credentials: 'include', // 👈 Sends auth cookie
-        });
+        const response = await fetch(
+          'https://jam-chat.onrender.com/api/posts',
+          {
+            method: 'POST',
+            body: formData,
+            credentials: 'include', // 👈 Sends auth cookie
+          }
+        );
 
         if (response.ok) {
           const result = await response.json();

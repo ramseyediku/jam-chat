@@ -13,7 +13,9 @@ export default function MyProfile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch('/api/myprofile', { credentials: 'include' });
+        const res = await fetch('https://jam-chat.onrender.com/api/myprofile', {
+          credentials: 'include',
+        });
 
         if (!res.ok) {
           if (res.status === 401) setError('Please log in');

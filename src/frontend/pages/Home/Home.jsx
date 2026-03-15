@@ -19,7 +19,9 @@ export default function Home() {
   // Fetch current user profile
   const fetchUserProfile = useCallback(async () => {
     try {
-      const res = await fetch('/api/myprofile', { credentials: 'include' });
+      const res = await fetch('https://jam-chat.onrender.com/api/myprofile', {
+        credentials: 'include',
+      });
       if (res.ok) {
         const { user } = await res.json();
         setUsername(user.username || 'Guest');
@@ -43,7 +45,7 @@ export default function Home() {
     fetchUserProfile();
     const fetchAllUsers = async () => {
       try {
-        const res = await fetch('/api/users');
+        const res = await fetch('https://jam-chat.onrender.com/api/users');
         if (res.ok) {
           const allUsers = await res.json();
           setUsers(allUsers);

@@ -14,7 +14,9 @@ export default function Explore() {
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch('/api/posts', { credentials: 'include' });
+      const response = await fetch('https://jam-chat.onrender.com/api/posts', {
+        credentials: 'include',
+      });
       if (!response.ok) throw new Error('Failed to fetch');
 
       const result = await response.json();

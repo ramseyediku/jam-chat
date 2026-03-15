@@ -19,7 +19,7 @@ export default function AudioRoomModal({ onClose }) {
     if (formData.image) data.append('image', formData.image);
 
     try {
-      const res = await fetch('/api/rooms', {
+      const res = await fetch('https://jam-chat.onrender.com/api/rooms', {
         method: 'POST',
         body: data,
       });

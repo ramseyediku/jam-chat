@@ -16,9 +16,12 @@ export default function Profile() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const res = await fetch(`/api/user?id=${id}`, {
-          credentials: 'include',
-        });
+        const res = await fetch(
+          `https://jam-chat.onrender.com/api/user?id=${id}`,
+          {
+            credentials: 'include',
+          }
+        );
 
         if (!res.ok) {
           if (res.status === 404) setError('User not found');
