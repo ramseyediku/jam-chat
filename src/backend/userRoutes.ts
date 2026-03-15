@@ -119,8 +119,6 @@ export const userRoutes = {
           return Response.json({ error: 'Username taken' }, { status: 400 });
         }
 
-        const authId = crypto.randomUUID(); // Primary key for users table
-
         // 1. Generate uniqueid
         let uniqueid: number;
         let existingId;
@@ -133,11 +131,10 @@ export const userRoutes = {
             .single());
         } while (existingId);
 
-        // 2. Insert profile (auth_id = our cookie ID)
+        // 2. Insert profile
         const { data: insertedUser, error: profileError } = await supabaseAdmin
           .from('users')
           .insert({
-            auth_id: authId,
             uniqueid,
             username,
             age,
@@ -180,7 +177,7 @@ export const userRoutes = {
             await supabaseAdmin
               .from('users')
               .update({ profile_image: profileFilename })
-              .eq('id', authId);
+              .eq('id', insertedUser.id);
             console.log('PFP updated');
           } else {
             console.error('PFP upload failed:', uploadError);
@@ -193,7 +190,7 @@ export const userRoutes = {
           .select(
             'id, profile_image, uniqueid, username, age, gender, bio, country'
           )
-          .eq('id', authId)
+          .eq('id', insertedUser.id)
           .single();
 
         const profile = withProfileUrl(dbUser!);
@@ -210,7 +207,7 @@ export const userRoutes = {
         );
         headers.append(
           `Set-Cookie`,
-          `auth-id=${authId}; HttpOnly; Path=/; Max-Age=2592000; SameSite=None; Secure`
+          `auth-id=${insertedUser.id}; HttpOnly; Path=/; Max-Age=2592000; SameSite=None; Secure`
         );
 
         return Response.json(
@@ -234,7 +231,7 @@ export const userRoutes = {
         const { data: user, error: findError } = await supabase
           .from('users')
           .select(
-            'auth_id, id, profile_image, uniqueid, username, age, gender, bio, country, level, following, fans'
+            'id, profile_image, uniqueid, username, age, gender, bio, country, level, following, fans'
           )
           .eq('username', username.toLowerCase())
           .single();
@@ -327,7 +324,7 @@ export const userRoutes = {
           .select(
             'id, profile_image, uniqueid, username, age, gender, bio, country, rcoins, diamonds, level, following, fans, isBlocked, isHost, agency'
           )
-          .eq('auth_id', supabaseUser.id)
+          .eq('id', supabaseUser.id)
           .single();
 
         if (error || !user) {
@@ -362,7 +359,7 @@ export const userRoutes = {
           .select(
             'id, profile_image, uniqueid, username, age, gender, bio, country, rcoins, diamonds, level, following, fans, isblocked, ishost, agency'
           )
-          .eq('id', userIdCookie) // ← By id, not auth_id!
+          .eq('id', userIdCookie)
           .single();
 
         console.log('User ID from cookie:', userIdCookie);
