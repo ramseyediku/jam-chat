@@ -103,7 +103,6 @@ export function Login() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ username: formData.username.trim() }),
       });
 
       const data = await response.json();
@@ -134,23 +133,10 @@ export function Login() {
                 <span>Continue with Google</span>
               </button>
               <span>or</span>
-              <section className="group">
-                <label htmlFor="username">Name</label>
-                <input
-                  className="input"
-                  type="text"
-                  name="username"
-                  id="username-login"
-                  value={formData.username}
-                  onChange={handleInputChange}
-                  disabled={loading}
-                  required
-                />
-              </section>
               <input
                 className="button"
                 type="submit"
-                value={loading ? 'Signing in...' : 'Continue'}
+                value={loading ? 'Signing in...' : 'Quick login'}
                 disabled={loading}
               />
               <small>
