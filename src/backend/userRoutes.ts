@@ -87,11 +87,9 @@ const getUserFromCookie = async (req: Request) => {
 
 export const userRoutes = {
   // POST /api/register {username, age, gender, bio?, pfp?}
-
   '/api/register': {
     POST: withCors(async (req: Request) => {
       try {
-        const origin = new URL(req.url).origin;
         const data = await req.formData();
         const username = (data.get('username') as string)?.trim().toLowerCase();
         const age = parseInt((data.get('age') as string) || '0');
@@ -393,17 +391,17 @@ export const userRoutes = {
           });
         }
 
-        const { data: users, error } = await supabase
+        const { data: users, error } = await supabaseAdmin
           .from('users')
-          .select('id, profile_image, username, fans')
+          .select('id, profile_image, username, fans, following')
           .ilike('username', `%${query}%`)
           .order('fans', { ascending: false })
           .limit(8);
 
         if (error || !users) {
+          console.error('Full database search error:', error);
           return Response.json([], { status: 500 });
         }
-
         const usersWithUrls = users.map(withProfileUrl);
 
         return Response.json(usersWithUrls, {
