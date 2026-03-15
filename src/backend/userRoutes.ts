@@ -223,6 +223,8 @@ export const userRoutes = {
   '/api/login': {
     POST: withCors(async (req: Request) => {
       try {
+        console.log('login endpoint');
+
         // 1. Extract auth-id cookie
         const authIdCookie = req.headers
           .get('cookie')
@@ -236,7 +238,7 @@ export const userRoutes = {
         }
 
         // 2. Fetch user by auth-id
-        const { data: user, error: findError } = await supabase
+        const { data: user, error: findError } = await supabaseAdmin
           .from('users')
           .select(
             'id, profile_image, uniqueid, username, age, gender, bio, country, level, following, fans'

@@ -139,6 +139,33 @@ export function Login() {
                 value={loading ? 'Signing in...' : 'Quick login'}
                 disabled={loading}
               />
+              <button
+                type="button" // Not submit!
+                onClick={async () => {
+                  try {
+                    console.log('🧪 Testing /api/test-users...');
+                    const res = await fetch(
+                      'https://jam-chat.onrender.com/api/test-users',
+                      {
+                        method: 'GET',
+                        credentials: 'include',
+                      }
+                    );
+                    const data = await res.json();
+                    console.log('✅ Test success:', data);
+                    alert(
+                      `Test OK! Users: ${data.count}\nOrigin was: ${data.origin}`
+                    );
+                  } catch (err) {
+                    console.error('❌ Test failed:', err);
+                    alert('Test failed - CORS/DB issue: ' + err.message);
+                  }
+                }}
+                className="button"
+                style={{ background: '#10b981', marginBottom: '10px' }}
+              >
+                🧪 Test API (Users)
+              </button>
               <small>
                 Don't have an account?{' '}
                 <Link onClick={() => setIsVisible(true)}>Sign up</Link>
@@ -255,7 +282,7 @@ export function Login() {
               <Link
                 onClick={() => {
                   setIsVisible(false);
-                  setPfpPreview(defaultPfp);
+                  setPfpPreview(defaultpfp);
                   setPfpFile(null);
                   if (fileInputRef.current) fileInputRef.current.value = '';
                 }}
