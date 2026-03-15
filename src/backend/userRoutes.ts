@@ -425,7 +425,7 @@ export const userRoutes = {
         let user = null;
 
         if (idParam) {
-          const { data, error } = await supabase
+          const { data, error } = await supabaseAdmin
             .from('users')
             .select(
               'id, profile_image, username, age, gender, level, following, fans, bio'
@@ -435,7 +435,7 @@ export const userRoutes = {
           if (error) throw error;
           user = data;
         } else if (usernameParam) {
-          const { data, error } = await supabase
+          const { data, error } = await supabaseAdmin
             .from('users')
             .select(
               'id, profile_image, username, age, gender, level, following, fans, bio'
