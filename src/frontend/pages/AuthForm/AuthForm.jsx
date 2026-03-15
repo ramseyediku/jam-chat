@@ -139,6 +139,7 @@ export function Login() {
                 value={loading ? 'Signing in...' : 'Quick login'}
                 disabled={loading}
               />
+
               <button
                 type="button" // Not submit!
                 onClick={async () => {

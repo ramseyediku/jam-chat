@@ -222,9 +222,11 @@ export const userRoutes = {
   // POST /api/login
   '/api/login': {
     POST: withCors(async (req: Request) => {
-      try {
-        console.log('login endpoint');
+      console.log('login endpoint');
+      const origin = req.headers.get('Origin') || '';
+      console.log('🧪 Test Origin:', origin);
 
+      try {
         // 1. Extract auth-id cookie
         const authIdCookie = req.headers
           .get('cookie')
@@ -329,7 +331,6 @@ export const userRoutes = {
     GET: withCors(async (req: Request) => {
       try {
         // NEW: Cookie‑based auth (matches register)
-
         const userIdCookie = parseInt(
           req.headers.get('cookie')?.match(/auth-id=([^;]+)/)?.[1]
         );
