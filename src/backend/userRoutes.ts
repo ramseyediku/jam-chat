@@ -137,7 +137,7 @@ export const userRoutes = {
         const { data: insertedUser, error: profileError } = await supabaseAdmin
           .from('users')
           .insert({
-            id: authId,
+            auth_id: authId,
             uniqueid,
             username,
             age,
