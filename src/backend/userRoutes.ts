@@ -86,7 +86,7 @@ const getUserFromCookie = async (req: Request) => {
 };
 
 export const userRoutes = {
-  // POST /api/register {username, age, gender, bio?, pfp?}
+  // POST /api/register
   '/api/register': {
     POST: withCors(async (req: Request) => {
       try {
@@ -219,60 +219,45 @@ export const userRoutes = {
     }),
   },
 
-  // POST /api/login {username}
+  // POST /api/login
   '/api/login': {
     POST: withCors(async (req: Request) => {
       try {
-        const { username } = await req.json();
+        // 1. Extract auth-id cookie
+        const authIdCookie = req.headers
+          .get('cookie')
+          ?.match(/auth-id=([^;]+)/)?.[1];
 
-        // 1. Find user by username
+        if (!authIdCookie) {
+          return Response.json(
+            { error: 'Please log in on this device to continue.' },
+            { status: 401 }
+          );
+        }
+
+        // 2. Fetch user by auth-id
         const { data: user, error: findError } = await supabase
           .from('users')
           .select(
             'id, profile_image, uniqueid, username, age, gender, bio, country, level, following, fans'
           )
-          .eq('username', username.toLowerCase())
+          .eq('id', authIdCookie)
           .single();
 
         if (findError || !user) {
           return Response.json(
-            { error: 'User not found. Try again or make new account.' },
+            { error: 'No account on this device. Create one to continue.' },
             { status: 404 }
           );
         }
-
-        // 2. Refresh/restore session using their auth_id (Supabase handles anonymous refresh)
-        const { data: session, error: sessionError } = await supabase.auth
-          .refreshSession({ refresh_token: '' }) // For anonymous, often just getUser works
-          .catch(async () => {
-            // Fallback: re-signin anonymously (safe for passwordless)
-            return supabase.auth.signInAnonymously();
-          });
-
-        if (sessionError || !session) {
-          console.error('Session error:', sessionError);
-          return Response.json({ error: 'Login failed' }, { status: 500 });
-        }
-
-        // Verify session matches user (optional safety)
-        if (session.user?.id !== user.auth_id) {
-          console.error('Auth mismatch');
-          return Response.json({ error: 'Session mismatch' }, { status: 401 });
-        }
-
-        // 3. Set cookie
-        const headers = new Headers({ 'Content-Type': 'application/json' });
-        headers.append(
-          'Set-Cookie',
-          `sb-access-token=${session.access_token}; HttpOnly; Path=/; Max-Age=3600; SameSite=Strict; Secure`
-        );
-
         const profile = withProfileUrl(user);
-
-        return Response.json({ user: profile }, { status: 200, headers });
+        return Response.json(
+          { user: profile, loggedIn: true },
+          { status: 200 }
+        );
       } catch (err) {
-        console.error('Login error:', err);
-        return Response.json({ error: 'Login failed' }, { status: 500 });
+        console.error('Login check error:', err);
+        return Response.json({ error: 'Login check failed' }, { status: 500 });
       }
     }),
   },
