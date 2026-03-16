@@ -10,7 +10,8 @@ const allowedOrigins = ['http://localhost:3000', `${renderUrl}`];
 const withCors = (handler: (req: Request) => Response | Promise<Response>) => {
   return async (req: Request) => {
     const origin = req.headers.get('Origin') || '';
-    console.log('🌐 CORS Origin:', origin); // Debug: localhost:3000
+    console.log('🌐 CORS Origin:', origin);
+    console.log('Origin: list', allowedOrigins);
 
     const corsHeaders: Record<string, string> = {
       'Access-Control-Allow-Origin': allowedOrigins.includes(origin)
