@@ -9,7 +9,7 @@
   --clr-blue-light: hsl(217, 89%, 61%);
 
   --clr-purple: hsl(249, 28%, 18%);
-  --clr-purple-2: hsl(272, 39%, 13%);
+  --clr-purple-2: hsl(272, 38%, 28%);
   --clr-purple-light: hsl(264, 21%, 35%);
 
   --clr-dark: hsl(0, 0%, 0%);
@@ -23,6 +23,7 @@ body {
   color: var(--clr-light);
   background-color: var(--clr-purple-2);
   background-color: #181821;
+  height: 100vh !important;
 }
 
 #apptitle {
@@ -50,7 +51,7 @@ body {
   }
 }
 
-.input {
+:where(.input) {
   --box-shadow: hsla(0, 0%, 39%, 0.2) 0px 2px 8px 0px;
   border: solid 1px var(--clr-purple-light);
   box-shadow: var(--box-shadow);

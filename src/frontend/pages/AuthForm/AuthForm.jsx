@@ -98,6 +98,8 @@ export function Login() {
     setLoading(true);
     setError('');
 
+    console.log('🧪 Testing /api/login...');
+
     try {
       const response = await fetch('https://jam-chat.onrender.com/api/login', {
         method: 'POST',

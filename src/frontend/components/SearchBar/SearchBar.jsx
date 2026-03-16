@@ -35,7 +35,7 @@ export default function SearchBar({ searchQuery, setSearchQuery }) {
       <input
         type="text"
         className="input search-input"
-        placeholder="Search user"
+        placeholder="Search People.."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
       />

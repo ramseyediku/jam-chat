@@ -8,7 +8,6 @@ import VideoIcon from '../../assets/menu/video.webp';
 import AddIcon from '../../assets/menu/new.webp';
 import MessageIcon from '../../assets/menu/message.webp';
 import SettingsIcon from '../../assets/menu/settings.webp';
-
 import './Sidebar.css';
 
 export default function Sidebar() {
@@ -22,7 +21,7 @@ export default function Sidebar() {
         }}
       >
         JAM
-      </h1>
+      </h1>{' '}
       <ul className="sidebar__list">
         <li className="sidebar__item">
           <Link to="/home" className="sidebar__link sidebar__link--active">
