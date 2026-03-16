@@ -4,7 +4,7 @@ import crypto from 'crypto';
 
 const renderUrl = process.env.RENDER_URL;
 
-const allowedOrigins = ['http://localhost:3000', `${renderUrl}`];
+const allowedOrigins = ['http://localhost:3000', 'http://jamchat.online'];
 
 //cors handler function
 const withCors = (handler: (req: Request) => Response | Promise<Response>) => {
