@@ -1,15 +1,11 @@
 // Live.jsx - Simple live page with Sidebar
 import { useState } from 'react';
-import Sidebar from '../../components/Sidebar/Sidebar';
-import './Live.css';
+import './RandomMatch.css';
 
-export default function Live() {
-  const [username, setUsername] = useState('Guest');
-  const [searchQuery, setSearchQuery] = useState('');
+export default function RandomMatch() {
   return (
     <div className="live">
       <section className="live__container">
-        <Sidebar />
         <main className="live__main">
           <p>Match with random person.</p>
           <div

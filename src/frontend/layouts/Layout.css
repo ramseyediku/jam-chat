@@ -1,0 +1,20 @@
+/* layout styling */
+@layer layout;
+@layer layout {
+  .baseLayout {
+    display: grid;
+    grid-template-columns:
+      minmax(285px, 1.5fr)
+      minmax(0, 4fr) /* main content */
+      minmax(180px, 1.75fr);
+    gap: 5em;
+  }
+
+  .baseLayout2 {
+    display: grid;
+    grid-template-columns:
+      minmax(285px, 1.5fr)
+      minmax(0, 7fr); /* main content */
+    gap: 1em;
+  }
+}

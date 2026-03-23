@@ -1,29 +1,26 @@
 /* myprofile.css - Complete updated file with cards + mobile matching */
 .profile {
-  padding: 1.5rem;
-  max-width: 1300px;
-  margin-inline: auto;
-  width: 100%;
-  padding-top: 0;
+  width: 80%;
 
   .profile__header {
+    width: 50%;
+    margin-inline: auto;
     display: flex;
-    align-items: start;
+    flex-direction: column;
+    align-items: center;
     gap: 2em;
-    padding-block: 2em;
+    padding-bottom: 1em;
   }
 
   .profile__header__info {
-    align-self: stretch;
     display: flex;
-    flex-direction: column;
-    justify-content: space-between;
   }
 
   .profile__avatar {
     width: 10em;
     aspect-ratio: 1/1;
-    border-radius: var(--border-radius);
+    border-radius: 50%;
+    cursor: pointer;
   }
 
   .profile__username {
@@ -32,6 +29,7 @@
     font-weight: 700;
     color: var(--clr-light);
   }
+
   .profile__username::first-letter {
     text-transform: uppercase;
   }
@@ -247,12 +245,7 @@
 }
 
 .profile-content-placeholder {
-  min-height: 400px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: var(--border-radius);
-  padding: 2rem;
-  color: #9aa4b2;
-  text-align: center;
+  padding: 1rem;
 }
 
 .profile__card--stats {

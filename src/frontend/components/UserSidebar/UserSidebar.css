@@ -1,8 +1,5 @@
 /* ===== USER CARD IN ASIDE ===== */
 .home__aside {
-  width: 25em;
-  margin-right: 10em;
-  margin-top: 1em;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -13,8 +10,7 @@
   color: var(--clr-grey);
   font-size: 0.85rem;
   line-height: 1.6;
-  text-align: left;
-  padding-block: 1.5em;
+  text-align: center;
 
   a {
     color: var(--clr-grey);

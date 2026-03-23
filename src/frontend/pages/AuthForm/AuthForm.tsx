@@ -28,7 +28,7 @@ export function Login() {
   const fileInputRef = useRef(null);
 
   // form inputs change
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: any) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -38,7 +38,7 @@ export function Login() {
   };
 
   // handle PFP file selection
-  const handlePfpChange = (e) => {
+  const handlePfpChange = (e: { target: { files: any[] } }) => {
     const file = e.target.files[0];
     if (file && file.type.startsWith('image/')) {
       const url = URL.createObjectURL(file);
@@ -49,7 +49,7 @@ export function Login() {
   };
 
   // handles registration logic
-  const handleRegister = async (e) => {
+  const handleRegister = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -93,7 +93,7 @@ export function Login() {
   };
 
   // handles login logic
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: { preventDefault: () => void }) => {
     e.preventDefault();
     setLoading(true);
     setError('');
@@ -171,7 +171,7 @@ export function Login() {
               </button>
               <small>
                 Don't have an account?{' '}
-                <Link onClick={() => setIsVisible(true)}>Sign up</Link>
+                <a onClick={() => setIsVisible(true)}>Sign up</a>
               </small>
               {error && <div className="error">{error}</div>}
             </form>
@@ -184,11 +184,7 @@ export function Login() {
             <section className="group">
               <label className="label">Profile image</label> {/* New class */}
               <div id="profile-picker" className="relative">
-                {' '}
-                {/* ID here */}
                 <label htmlFor="pfp-upload" className="picker-label">
-                  {' '}
-                  {/* New class */}
                   <img
                     src={pfpPreview}
                     alt="Profile preview"
@@ -282,7 +278,7 @@ export function Login() {
 
             <small>
               Already have an account?{' '}
-              <Link
+              <a
                 onClick={() => {
                   setIsVisible(false);
                   setPfpPreview(defaultpfp);
@@ -291,40 +287,12 @@ export function Login() {
                 }}
               >
                 Sign in
-              </Link>
+              </a>
             </small>
             <small>
               By signing in, you agree to our <a href="#">Terms</a> and{' '}
               <a href="#">Privacy Policy</a>
             </small>
-
-            <button
-              type="button" // Not submit!
-              onClick={async () => {
-                try {
-                  console.log('🧪 Testing /api/test-users...');
-                  const res = await fetch(
-                    'https://jam-chat.onrender.com/api/test-users',
-                    {
-                      method: 'GET',
-                      credentials: 'include',
-                    }
-                  );
-                  const data = await res.json();
-                  console.log('✅ Test success:', data);
-                  alert(
-                    `Test OK! Users: ${data.count}\nOrigin was: ${data.origin}`
-                  );
-                } catch (err) {
-                  console.error('❌ Test failed:', err);
-                  alert('Test failed - CORS/DB issue: ' + err.message);
-                }
-              }}
-              className="button"
-              style={{ background: '#10b981', marginBottom: '10px' }}
-            >
-              🧪 Test API (Users)
-            </button>
 
             {error && <div className="error">{error}</div>}
           </form>

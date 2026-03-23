@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './SearchBar.css';
 
-export default function SearchBar({ searchQuery, setSearchQuery }) {
+export default function SearchBar() {
   const [results, setResults] = useState([]);
   const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -24,27 +25,28 @@ export default function SearchBar({ searchQuery, setSearchQuery }) {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const handleUserClick = (userId, username) => {
+  const handleUserClick = (userId) => {
     setResults([]);
     setSearchQuery('');
-    navigate(`/user/${userId}`);
+    navigate(`/jam/user/${userId}`);
   };
 
   return (
     <div className="search">
       <input
         type="text"
-        className="input search-input"
+        name="search"
+        className="input search__input"
         placeholder="Search People.."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
       />
       {results.length > 0 && (
-        <ul className="search-results" role="listbox">
+        <ol className="search__results" role="listbox">
           {results.map((user) => (
             <li
               key={user.id}
-              className="search-result-item"
+              className="search__result__item"
               role="option"
               onClick={() => handleUserClick(user.id, user.username)}
               onMouseDown={(e) => e.preventDefault()}
@@ -53,14 +55,14 @@ export default function SearchBar({ searchQuery, setSearchQuery }) {
               <img
                 src={user.profile_image_url}
                 alt={user.username}
-                className="search-result-avatar"
+                className="search__result__avatar"
               />
-              <div className="search-result-info">
-                <span className="search-result-username">{user.username}</span>
+              <div className="search__result__info">
+                <span>{user.username}</span>
               </div>
             </li>
           ))}
-        </ul>
+        </ol>
       )}
     </div>
   );

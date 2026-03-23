@@ -1,0 +1,9 @@
+.settings {
+  border: solid 1px red;
+
+  .settings__avatar {
+    width: 10em;
+    aspect-ratio: 1/1;
+    border-radius: 50%;
+  }
+}
