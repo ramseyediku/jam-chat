@@ -1,51 +1,23 @@
-import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import defaultpfp from '../../assets/default-pfp.png';
+import useMyProfile from '@/frontend/api/myprofile';
 import './UserSidebar.css';
 
 const UserSideBar = () => {
-  const [username, setUsername] = useState('Loading...');
-  const [profileImage, setProfileImage] = useState(defaultpfp);
   const navigate = useNavigate();
   const handleMyProfileClick = () => navigate('jam/me');
 
-  const fetchUserProfile = useCallback(async () => {
-    try {
-      const res = await fetch('https://jam-chat.onrender.com/api/myprofile', {
-        credentials: 'include',
-      });
-
-      if (res.ok) {
-        const { user } = await res.json();
-        setUsername(user.username);
-
-        if (user.profile_image_url != '')
-          setProfileImage(user.profile_image_url);
-      } else {
-        setUsername('Guest');
-        setProfileImage(defaultpfp);
-        console.error('Bad response from my profile');
-      }
-    } catch (error) {
-      console.error('Failed to fetch profile:', error);
-      setUsername('Guest');
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchUserProfile();
-  }, [fetchUserProfile]);
+  const { data: profile, isLoading, isError, error } = useMyProfile();
 
   return (
     <aside className="home__aside">
       <div className="user-card" onClick={handleMyProfileClick}>
         <img
-          src={profileImage}
-          alt={`${username}'s profile`}
+          src={profile?.profile_image_url}
+          alt={`${profile?.username}'s profile`}
           className="user-card__avatar"
         />
         <div className="user-card__info">
-          <span className="user-card__username">{username}</span>
+          <span className="user-card__username">{profile?.username}</span>
           <span className="user-card__label">My Profile</span>
         </div>
       </div>

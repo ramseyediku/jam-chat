@@ -48,7 +48,7 @@ export default function SearchBar() {
               key={user.id}
               className="search__result__item"
               role="option"
-              onClick={() => handleUserClick(user.id, user.username)}
+              onClick={() => handleUserClick(user.id)}
               onMouseDown={(e) => e.preventDefault()}
               tabIndex={0}
             >

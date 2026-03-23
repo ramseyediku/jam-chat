@@ -26,7 +26,7 @@ export default function PostUploadModal({ onClose }) {
     fileInputRef.current?.click();
   };
   const handleSubmit = useCallback(
-    async (e) => {
+    async (e: { preventDefault: () => void }) => {
       e.preventDefault();
       if (!file || !caption.trim()) {
         setError('Add image and caption');
